@@ -70,6 +70,7 @@ const schema = defineSchema(
       requesterId: v.optional(v.id("users")), // who logged it
       customerName: v.string(), // requester display name
       customerEmail: v.string(), // requester contact address
+      assigneeId: v.optional(v.id("users")), // teammate who owns it
       status: ticketStatusValidator,
       priority: ticketPriorityValidator,
       messageCount: v.number(),
@@ -82,7 +83,8 @@ const schema = defineSchema(
       .index("by_status", ["status"])
       .index("by_reference", ["reference"])
       .index("by_last_activity", ["lastActivityAt"])
-      .index("by_requester", ["requesterId"]),
+      .index("by_requester", ["requesterId"])
+      .index("by_assignee", ["assigneeId"]),
 
     // the comment thread on a ticket
     ticketMessages: defineTable({

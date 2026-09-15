@@ -19,12 +19,14 @@ import type { LucideIcon } from "lucide-react";
 import {
   CheckCircle2,
   Circle,
+  ClipboardList,
   Clock3,
   Inbox,
   ListTodo,
   Loader2,
   Plus,
   Trash2,
+  UserRound,
   Users,
 } from "lucide-react";
 import { useState } from "react";
@@ -115,6 +117,12 @@ export default function Dashboard() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile
+            label="Assigned to me"
+            value={mine?.assignedCount ?? 0}
+            hint="Unresolved tickets with your name on them"
+            icon={UserRound}
+          />
+          <StatTile
             label="My open"
             value={mine?.open ?? 0}
             hint="Tickets you logged that need work"
@@ -127,12 +135,6 @@ export default function Dashboard() {
             icon={Clock3}
           />
           <StatTile
-            label="Resolved"
-            value={mine?.done ?? 0}
-            hint="Your tickets already closed out"
-            icon={CheckCircle2}
-          />
-          <StatTile
             label="Open todos"
             value={todos?.open ?? 0}
             hint="On your personal list"
@@ -140,13 +142,56 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
+            <CardHeader className="gap-0 border-b border-border/70 py-5">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ClipboardList className="size-4 text-muted-foreground" />
+                Assigned to you
+              </CardTitle>
+              <CardDescription>
+                {mine && mine.assignedCount > 0
+                  ? `${mine.assignedCount} unresolved ticket${
+                      mine.assignedCount === 1 ? "" : "s"
+                    } in your name`
+                  : "Nothing is waiting on you right now"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 py-0">
+              {mine === undefined ? (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : mine.assigned.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+                  <span className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-muted/40 text-muted-foreground">
+                    <UserRound className="size-5" />
+                  </span>
+                  <p className="mt-1 text-sm font-medium">Inbox zero</p>
+                  <p className="max-w-xs text-xs leading-5 text-muted-foreground">
+                    Tickets appear here once you claim one. Pick up anything
+                    unowned from the catalog.
+                  </p>
+                  <Button asChild size="sm" variant="outline" className="mt-3 bg-card">
+                    <Link to="/catalog">Find something to pick up</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/70">
+                  {mine.assigned.map((ticket) => (
+                    <TicketRow key={ticket._id} ticket={ticket} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
             <CardHeader className="gap-0 border-b border-border/70 py-5">
               <CardTitle className="text-base">My tickets</CardTitle>
               <CardDescription>
                 {mine && mine.total > 0
-                  ? `${mine.total} ticket${mine.total === 1 ? "" : "s"} you logged`
+                  ? `${mine.total} you logged · ${mine.done} closed out`
                   : "Nothing logged under your name yet"}
               </CardDescription>
             </CardHeader>
@@ -162,8 +207,8 @@ export default function Dashboard() {
                   </span>
                   <p className="mt-1 text-sm font-medium">No tickets yet</p>
                   <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-                    Log something you are waiting on and it will show up here
-                    alongside everything else in the catalog.
+                    Log something you are waiting on and it shows up here
+                    alongside the rest of the catalog.
                   </p>
                   <Button asChild size="sm" className="mt-3 gap-1.5">
                     <Link to="/new">
@@ -181,7 +226,9 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
 
+        <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
           <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
             <CardHeader className="gap-0 border-b border-border/70 py-5">
               <CardTitle className="text-base">Todos</CardTitle>
@@ -274,63 +321,72 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="size-4 text-muted-foreground" />
-              Across the team
-            </CardTitle>
-            <CardDescription>
-              The whole queue, not just your slice of it
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                {
-                  label: "Open",
-                  value: stats?.open ?? 0,
-                  hint: "Nobody has replied yet",
-                },
-                {
-                  label: "Waiting",
-                  value: stats?.pending ?? 0,
-                  hint: "Replied, waiting on someone",
-                },
-                {
-                  label: "Needs attention",
-                  value: stats?.needingAttention ?? 0,
-                  hint: "High or urgent, still open",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3"
+          <Card className="rounded-2xl border-border/70 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="size-4 text-muted-foreground" />
+                Across the team
+              </CardTitle>
+              <CardDescription>
+                The whole queue, not just your slice of it
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  {
+                    label: "Open",
+                    value: stats?.open ?? 0,
+                    hint: "Nobody has replied yet",
+                  },
+                  {
+                    label: "Waiting",
+                    value: stats?.pending ?? 0,
+                    hint: "Waiting on someone",
+                  },
+                  {
+                    label: "Urgent",
+                    value: stats?.needingAttention ?? 0,
+                    hint: "High or urgent, open",
+                  },
+                  {
+                    label: "Unassigned",
+                    value: stats?.unassigned ?? 0,
+                    hint: "Nobody owns these yet",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3"
+                  >
+                    <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 font-mono text-2xl font-medium tabular-nums">
+                      {item.value}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.hint}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button asChild variant="outline" className="bg-card">
+                  <Link to="/catalog">Browse the catalog</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="text-muted-foreground"
                 >
-                  <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 font-mono text-2xl font-medium tabular-nums">
-                    {item.value}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {item.hint}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button asChild variant="outline" className="bg-card">
-                <Link to="/catalog">Browse the catalog</Link>
-              </Button>
-              <Button asChild variant="ghost" className="text-muted-foreground">
-                <Link to="/admin">Open the admin area</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                  <Link to="/admin">Open the admin area</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppShell>
   );

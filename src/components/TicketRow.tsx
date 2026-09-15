@@ -30,6 +30,7 @@ export type TicketRowTicket = {
   reference: string;
   subject: string;
   customerName: string;
+  assigneeName?: string;
   status: TicketStatus;
   priority: TicketPriority;
   lastActivityAt: number;
@@ -56,6 +57,15 @@ export function TicketRow({
           <span className="font-mono text-[11px]">{ticket.reference}</span>
           <span className="text-border">/</span>
           <span className="truncate">{ticket.customerName}</span>
+          <span className="text-border">/</span>
+          <span
+            className={cn(
+              "truncate",
+              !ticket.assigneeName && "italic text-muted-foreground/70",
+            )}
+          >
+            {ticket.assigneeName ? `@${ticket.assigneeName}` : "unassigned"}
+          </span>
           <span className="text-border">/</span>
           <span className="tabular-nums">{timeAgo(ticket.lastActivityAt)}</span>
         </p>

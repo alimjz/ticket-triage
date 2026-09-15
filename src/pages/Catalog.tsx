@@ -34,6 +34,9 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 export default function Catalog() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [priority, setPriority] = useState<"all" | TicketPriority>("all");
+  const [assignee, setAssignee] = useState<"any" | "me" | "unassigned">(
+    "any",
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSeeding, setIsSeeding] = useState(false);
@@ -48,6 +51,7 @@ export default function Catalog() {
   const tickets = useQuery(api.tickets.listTickets, {
     status,
     priority,
+    assignee,
     search: debouncedSearch,
   });
   const stats = useQuery(api.tickets.stats);
@@ -61,7 +65,10 @@ export default function Catalog() {
   };
 
   const isFiltered =
-    status !== "all" || priority !== "all" || debouncedSearch.trim().length > 0;
+    status !== "all" ||
+    priority !== "all" ||
+    assignee !== "any" ||
+    debouncedSearch.trim().length > 0;
 
   const handleSeed = async () => {
     setIsSeeding(true);
@@ -152,13 +159,28 @@ export default function Catalog() {
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={assignee}
+              onValueChange={(value) =>
+                setAssignee(value as "any" | "me" | "unassigned")
+              }
+            >
+              <SelectTrigger className="h-9 w-full bg-card sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any owner</SelectItem>
+                <SelectItem value="me">Assigned to me</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
           <div className="hidden items-center gap-4 border-b border-border/70 bg-muted/20 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground md:flex">
             <span className="flex-1">Ticket</span>
-            <span className="w-44">Requester</span>
+            <span className="w-44">Owner</span>
             <span className="w-24 text-right">Priority</span>
             <span className="w-24 text-right">Status</span>
             <span className="w-20 text-right">Updated</span>
@@ -180,7 +202,7 @@ export default function Catalog() {
               </p>
               <p className="max-w-sm text-xs leading-5 text-muted-foreground">
                 {isFiltered
-                  ? "Try a different status, priority, or search term."
+                  ? "Try a different status, priority, owner, or search term."
                   : "Log the first ticket, or load a sample queue to see how triage works."}
               </p>
               {isFiltered ? (
@@ -191,6 +213,7 @@ export default function Catalog() {
                   onClick={() => {
                     setStatus("all");
                     setPriority("all");
+                    setAssignee("any");
                     setSearch("");
                   }}
                 >
@@ -242,9 +265,16 @@ export default function Catalog() {
                     </p>
                   </div>
                   <div className="min-w-0 md:w-44">
-                    <p className="truncate text-[13px]">{ticket.customerName}</p>
+                    <p
+                      className={cn(
+                        "truncate text-[13px]",
+                        !ticket.assigneeName && "italic text-muted-foreground",
+                      )}
+                    >
+                      {ticket.assigneeName ?? "Unassigned"}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {ticket.customerEmail || "No email on file"}
+                      logged by {ticket.customerName}
                     </p>
                   </div>
                   <div className="md:w-24 md:text-right">

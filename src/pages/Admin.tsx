@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { AssigneeSelect, useTeamMembers } from "@/components/AssigneeSelect";
 import { TicketRow } from "@/components/TicketRow";
 import {
   AlertDialog,
@@ -52,6 +53,7 @@ import {
   Sparkles,
   TimerReset,
   Trash2,
+  UserRound,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -119,6 +121,7 @@ export default function Admin() {
   const updateTicket = useMutation(api.tickets.updateTicket);
   const deleteTicket = useMutation(api.tickets.deleteTicket);
   const seedSampleTickets = useMutation(api.tickets.seedSampleTickets);
+  const members = useTeamMembers();
   const [isSeeding, setIsSeeding] = useState(false);
 
   const handleSeed = async () => {
@@ -157,6 +160,18 @@ export default function Admin() {
       );
     } catch (caught) {
       toast.error(errorMessage(caught, "Could not update the priority."));
+    }
+  };
+
+  const handleAssignee = async (
+    ticketId: Id<"tickets">,
+    assigneeId: Id<"users"> | null,
+  ) => {
+    try {
+      await updateTicket({ ticketId, assigneeId });
+      toast.success(assigneeId ? "Owner updated" : "Owner cleared");
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Could not change the owner."));
     }
   };
 
@@ -358,7 +373,7 @@ export default function Admin() {
               Derived from every ticket on record
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+          <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
                 icon: TimerReset,
@@ -374,6 +389,11 @@ export default function Admin() {
                 icon: Inbox,
                 label: "Tickets on record",
                 value: `${stats.total}`,
+              },
+              {
+                icon: UserRound,
+                label: "Unassigned",
+                value: `${stats.unassigned}`,
               },
             ].map((row) => (
               <div
@@ -428,6 +448,18 @@ export default function Admin() {
                       <span className="px-1.5 font-sans text-border">/</span>
                       <span className="font-sans">{ticket.customerName}</span>
                       <span className="px-1.5 font-sans text-border">/</span>
+                      <span
+                        className={cn(
+                          "font-sans",
+                          !ticket.assigneeName &&
+                            "italic text-muted-foreground/70",
+                        )}
+                      >
+                        {ticket.assigneeName
+                          ? `@${ticket.assigneeName}`
+                          : "unassigned"}
+                      </span>
+                      <span className="px-1.5 font-sans text-border">/</span>
                       <span className="font-sans">
                         {timeAgo(ticket.lastActivityAt)}
                       </span>
@@ -435,6 +467,16 @@ export default function Admin() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <AssigneeSelect
+                      members={members}
+                      value={ticket.assigneeId}
+                      onChange={(assigneeId) =>
+                        handleAssignee(ticket._id, assigneeId)
+                      }
+                      size="sm"
+                      className="w-[150px] bg-card"
+                    />
+
                     <Select
                       value={ticket.status}
                       onValueChange={(value) =>

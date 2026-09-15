@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { AssigneeSelect, useTeamMembers } from "@/components/AssigneeSelect";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,8 +30,11 @@ export default function NewTicket() {
   const generateUploadUrl = useMutation(api.tickets.generateUploadUrl);
   const navigate = useNavigate();
 
+  const members = useTeamMembers();
+
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [assigneeId, setAssigneeId] = useState<Id<"users"> | undefined>();
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -111,6 +115,7 @@ export default function NewTicket() {
       const result = await createTicket({
         subject,
         body,
+        assigneeId,
         attachments: uploads.length > 0 ? uploads : undefined,
       });
 
@@ -177,6 +182,20 @@ export default function NewTicket() {
                     {body.trim().length} chars
                   </span>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Owner</Label>
+                <AssigneeSelect
+                  members={members}
+                  value={assigneeId}
+                  onChange={(next) => setAssigneeId(next ?? undefined)}
+                  className="w-full bg-background"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. Leave it unassigned and anyone can pick it up from
+                  the catalog.
+                </p>
               </div>
 
               <div className="space-y-3">

@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { AssigneeSelect, useTeamMembers } from "@/components/AssigneeSelect";
 import { PriorityBadge, StatusBadge } from "@/components/TicketRow";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +69,7 @@ export default function TicketDetail() {
   const addComment = useMutation(api.tickets.addComment);
   const updateTicket = useMutation(api.tickets.updateTicket);
   const createTodo = useMutation(api.todos.createTodo);
+  const members = useTeamMembers();
   const navigate = useNavigate();
 
   const [comment, setComment] = useState("");
@@ -111,6 +113,16 @@ export default function TicketDetail() {
       );
     } catch (caught) {
       toast.error(errorMessage(caught, "Could not update the priority."));
+    }
+  };
+
+  const handleAssigneeChange = async (assigneeId: Id<"users"> | null) => {
+    if (!ticket) return;
+    try {
+      await updateTicket({ ticketId: ticket._id, assigneeId });
+      toast.success(assigneeId ? "Owner updated" : "Owner cleared");
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Could not change the owner."));
     }
   };
 
@@ -398,6 +410,23 @@ export default function TicketDetail() {
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   {PRIORITY_META[ticket.priority].hint}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Owner
+                </p>
+                <AssigneeSelect
+                  members={members}
+                  value={ticket.assigneeId}
+                  onChange={handleAssigneeChange}
+                  className="w-full bg-background"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {ticket.assigneeId
+                    ? "This teammate owns the next move."
+                    : "Nobody owns this ticket yet."}
                 </p>
               </div>
 

@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   mutation,
   query,
@@ -63,6 +63,47 @@ function displayName(user: Doc<"users"> | null, fallback = "Teammate") {
   return fallback;
 }
 
+/** A ticket plus the resolved name of the teammate who owns it. */
+export type TicketWithOwner = Doc<"tickets"> & { assigneeName?: string };
+
+/** Names for every account in the workspace, keyed by user id. */
+async function ownerNames(ctx: QueryCtx) {
+  const users = await ctx.db.query("users").take(200);
+  const names = new Map<Id<"users">, string>();
+  for (const user of users) {
+    names.set(user._id, displayName(user));
+  }
+  return names;
+}
+
+function attachOwner(
+  ticket: Doc<"tickets">,
+  names: Map<Id<"users">, string>,
+): TicketWithOwner {
+  return {
+    ...ticket,
+    assigneeName: ticket.assigneeId ? names.get(ticket.assigneeId) : undefined,
+  };
+}
+
+/** The teammates a ticket can be assigned to. */
+export const teamMembers = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireUser(ctx);
+
+    const users = await ctx.db.query("users").take(200);
+
+    return users
+      .map((user) => ({
+        _id: user._id,
+        name: displayName(user),
+        email: user.email ?? "",
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
 /** Signed-in users upload files straight to Convex storage. */
 export const generateUploadUrl = mutation({
   args: {},
@@ -78,6 +119,7 @@ export const createTicket = mutation({
     subject: v.string(),
     body: v.string(),
     attachments: v.optional(v.array(attachmentInput)),
+    assigneeId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -98,6 +140,12 @@ export const createTicket = mutation({
         throw new ConvexError(`${file.name} is larger than 10 MB.`);
       }
     }
+    if (args.assigneeId) {
+      const assignee = await ctx.db.get(args.assigneeId);
+      if (assignee === null) {
+        throw new ConvexError("That teammate no longer exists.");
+      }
+    }
 
     let reference = randomReference();
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -116,6 +164,7 @@ export const createTicket = mutation({
       requesterId: userId,
       customerName: displayName(author),
       customerEmail: author?.email ?? "",
+      assigneeId: args.assigneeId,
       status: TICKET_STATUSES.OPEN,
       priority: TICKET_PRIORITIES.NORMAL,
       messageCount: 1,
@@ -154,9 +203,12 @@ export const listTickets = query({
     status: v.optional(v.union(v.literal("all"), ticketStatusValidator)),
     priority: v.optional(v.union(v.literal("all"), ticketPriorityValidator)),
     search: v.optional(v.string()),
+    assignee: v.optional(
+      v.union(v.literal("any"), v.literal("me"), v.literal("unassigned")),
+    ),
   },
   handler: async (ctx, args) => {
-    await requireUser(ctx);
+    const userId = await requireUser(ctx);
 
     const tickets = await ctx.db
       .query("tickets")
@@ -164,22 +216,34 @@ export const listTickets = query({
       .order("desc")
       .take(200);
 
+    const names = await ownerNames(ctx);
+
     const search = args.search?.trim().toLowerCase() ?? "";
     const status = args.status ?? "all";
     const priority = args.priority ?? "all";
+    const assignee = args.assignee ?? "any";
 
-    return tickets.filter((ticket) => {
-      if (status !== "all" && ticket.status !== status) return false;
-      if (priority !== "all" && ticket.priority !== priority) return false;
-      if (!search) return true;
-      return (
-        ticket.subject.toLowerCase().includes(search) ||
-        ticket.reference.toLowerCase().includes(search) ||
-        ticket.customerName.toLowerCase().includes(search) ||
-        ticket.customerEmail.toLowerCase().includes(search) ||
-        ticket.lastMessagePreview.toLowerCase().includes(search)
-      );
-    });
+    return tickets
+      .filter((ticket) => {
+        if (status !== "all" && ticket.status !== status) return false;
+        if (priority !== "all" && ticket.priority !== priority) return false;
+        if (assignee === "me" && ticket.assigneeId !== userId) return false;
+        if (assignee === "unassigned" && ticket.assigneeId !== undefined) {
+          return false;
+        }
+        if (!search) return true;
+        return (
+          ticket.subject.toLowerCase().includes(search) ||
+          ticket.reference.toLowerCase().includes(search) ||
+          ticket.customerName.toLowerCase().includes(search) ||
+          ticket.customerEmail.toLowerCase().includes(search) ||
+          ticket.lastMessagePreview.toLowerCase().includes(search) ||
+          (ticket.assigneeId
+            ? (names.get(ticket.assigneeId) ?? "").toLowerCase().includes(search)
+            : false)
+        );
+      })
+      .map((ticket) => attachOwner(ticket, names));
   },
 });
 
@@ -268,6 +332,8 @@ export const updateTicket = mutation({
     ticketId: v.id("tickets"),
     status: v.optional(ticketStatusValidator),
     priority: v.optional(ticketPriorityValidator),
+    // null clears the owner, undefined leaves it alone
+    assigneeId: v.optional(v.union(v.id("users"), v.null())),
   },
   handler: async (ctx, args) => {
     await requireUser(ctx);
@@ -285,6 +351,17 @@ export const updateTicket = mutation({
     }
     if (args.priority !== undefined) {
       patch.priority = args.priority;
+    }
+    if (args.assigneeId !== undefined) {
+      if (args.assigneeId === null) {
+        patch.assigneeId = undefined;
+      } else {
+        const assignee = await ctx.db.get(args.assigneeId);
+        if (assignee === null) {
+          throw new ConvexError("That teammate no longer exists.");
+        }
+        patch.assigneeId = args.assigneeId;
+      }
     }
 
     if (Object.keys(patch).length > 0) {
@@ -337,12 +414,13 @@ export type TeamStats = {
   resolved: number;
   closed: number;
   needingAttention: number;
+  unassigned: number;
   resolvedThisWeek: number;
   avgFirstResponseMinutes: number | null;
   oldestOpenAt: number | null;
   activity: { day: string; tickets: number }[];
-  recent: Doc<"tickets">[];
-  queue: Doc<"tickets">[];
+  recent: TicketWithOwner[];
+  queue: TicketWithOwner[];
 };
 
 /** Team-wide numbers for the admin area. */
@@ -367,6 +445,7 @@ export const stats = query({
       closed: 0,
     };
     let needingAttention = 0;
+    let unassigned = 0;
     let resolvedThisWeek = 0;
     let oldestOpenAt: number | null = null;
     let responseTotal = 0;
@@ -388,6 +467,9 @@ export const stats = query({
           ticket.priority === TICKET_PRIORITIES.HIGH)
       ) {
         needingAttention += 1;
+      }
+      if (isUnresolved && ticket.assigneeId === undefined) {
+        unassigned += 1;
       }
       if (
         ticket.status === TICKET_STATUSES.RESOLVED &&
@@ -411,6 +493,8 @@ export const stats = query({
       }
     }
 
+    const names = await ownerNames(ctx);
+
     return {
       total: tickets.length,
       open: counts.open,
@@ -418,6 +502,7 @@ export const stats = query({
       resolved: counts.resolved,
       closed: counts.closed,
       needingAttention,
+      unassigned,
       resolvedThisWeek,
       avgFirstResponseMinutes:
         responseCount === 0
@@ -428,14 +513,15 @@ export const stats = query({
         day,
         tickets: count,
       })),
-      recent: tickets.slice(0, 5),
+      recent: tickets.slice(0, 5).map((ticket) => attachOwner(ticket, names)),
       queue: tickets
         .filter(
           (ticket) =>
             ticket.status === TICKET_STATUSES.OPEN ||
             ticket.status === TICKET_STATUSES.PENDING,
         )
-        .slice(0, 5),
+        .slice(0, 5)
+        .map((ticket) => attachOwner(ticket, names)),
     };
   },
 });
@@ -445,10 +531,12 @@ export type MyDashboard = {
   total: number;
   waiting: number;
   done: number;
-  tickets: Doc<"tickets">[];
+  tickets: TicketWithOwner[];
+  assigned: TicketWithOwner[];
+  assignedCount: number;
 };
 
-/** The signed-in teammate's own tickets and counts. */
+/** The signed-in teammate's own tickets, their assignments, and counts. */
 export const myDashboard = query({
   args: {},
   handler: async (ctx): Promise<MyDashboard> => {
@@ -459,7 +547,21 @@ export const myDashboard = query({
       .withIndex("by_requester", (q) => q.eq("requesterId", userId))
       .collect();
 
+    const assignedToMe = await ctx.db
+      .query("tickets")
+      .withIndex("by_assignee", (q) => q.eq("assigneeId", userId))
+      .collect();
+
+    const names = await ownerNames(ctx);
+
+    const isUnresolved = (ticket: Doc<"tickets">) =>
+      ticket.status === TICKET_STATUSES.OPEN ||
+      ticket.status === TICKET_STATUSES.PENDING;
+
     const sorted = mine.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+    const assigned = assignedToMe
+      .filter(isUnresolved)
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
 
     return {
       open: sorted.filter((ticket) => ticket.status === TICKET_STATUSES.OPEN)
@@ -473,7 +575,9 @@ export const myDashboard = query({
           ticket.status === TICKET_STATUSES.CLOSED,
       ).length,
       total: sorted.length,
-      tickets: sorted.slice(0, 6),
+      tickets: sorted.slice(0, 6).map((ticket) => attachOwner(ticket, names)),
+      assigned: assigned.slice(0, 6).map((ticket) => attachOwner(ticket, names)),
+      assignedCount: assigned.length,
     };
   },
 });
@@ -482,7 +586,7 @@ export const myDashboard = query({
 export const seedSampleTickets = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireUser(ctx);
+    const userId = await requireUser(ctx);
 
     const existing = await ctx.db.query("tickets").take(1);
     if (existing.length > 0) return { inserted: 0 };
@@ -499,6 +603,7 @@ export const seedSampleTickets = mutation({
       priority: TicketPriority;
       hoursAgo: number;
       comment?: { author: string; body: string; delayHours: number };
+      ownedByViewer?: boolean;
     };
 
     const samples: Sample[] = [
@@ -510,6 +615,7 @@ export const seedSampleTickets = mutation({
         status: TICKET_STATUSES.OPEN,
         priority: TICKET_PRIORITIES.HIGH,
         hoursAgo: 3,
+        ownedByViewer: true,
       },
       {
         subject: "Deploy runbook is out of date",
@@ -519,6 +625,7 @@ export const seedSampleTickets = mutation({
         status: TICKET_STATUSES.OPEN,
         priority: TICKET_PRIORITIES.URGENT,
         hoursAgo: 6,
+        ownedByViewer: true,
       },
       {
         subject: "Import fails on files larger than 5 MB",
@@ -570,6 +677,7 @@ export const seedSampleTickets = mutation({
         status: TICKET_STATUSES.OPEN,
         priority: TICKET_PRIORITIES.HIGH,
         hoursAgo: 52,
+        ownedByViewer: true,
       },
       {
         subject: "Nightly sync hits the API rate limit",
@@ -631,6 +739,7 @@ export const seedSampleTickets = mutation({
         subject: sample.subject,
         customerName: sample.requester,
         customerEmail: sample.email,
+        assigneeId: sample.ownedByViewer ? userId : undefined,
         status: sample.status,
         priority: sample.priority,
         messageCount: sample.comment ? 2 : 1,
