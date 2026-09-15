@@ -11,8 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useI18n } from "@/hooks/use-i18n";
 import { errorMessage } from "@/lib/errors";
-import { timeAgo } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import type { LucideIcon } from "lucide-react";
@@ -63,6 +63,7 @@ function StatTile({
 }
 
 export default function Dashboard() {
+  const { t, timeAgo } = useI18n();
   const mine = useQuery(api.tickets.myDashboard);
   const todos = useQuery(api.todos.listMine);
   const stats = useQuery(api.tickets.stats);
@@ -81,7 +82,7 @@ export default function Dashboard() {
       await createTodo({ title });
       setDraft("");
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not add that todo."));
+      toast.error(errorMessage(caught, t("errors.addTodo")));
     }
   };
 
@@ -89,7 +90,7 @@ export default function Dashboard() {
     try {
       await toggleTodo({ todoId, done });
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not update that todo."));
+      toast.error(errorMessage(caught, t("errors.updateTodo")));
     }
   };
 
@@ -97,19 +98,42 @@ export default function Dashboard() {
     try {
       await deleteTodo({ todoId });
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not delete that todo."));
+      toast.error(errorMessage(caught, t("errors.deleteTodo")));
     }
   };
 
+  const teamTiles: { label: string; value: number; hint: string }[] = [
+    {
+      label: t("dashboard.teamOpen"),
+      value: stats?.open ?? 0,
+      hint: t("dashboard.teamOpenHint"),
+    },
+    {
+      label: t("dashboard.teamWaiting"),
+      value: stats?.pending ?? 0,
+      hint: t("dashboard.teamWaitingHint"),
+    },
+    {
+      label: t("dashboard.teamUrgent"),
+      value: stats?.needingAttention ?? 0,
+      hint: t("dashboard.teamUrgentHint"),
+    },
+    {
+      label: t("dashboard.teamUnassigned"),
+      value: stats?.unassigned ?? 0,
+      hint: t("dashboard.teamUnassignedHint"),
+    },
+  ];
+
   return (
     <AppShell
-      title="Dashboard"
-      description="Your tickets, your todos, and what is waiting on you."
+      title={t("dashboard.title")}
+      description={t("dashboard.description")}
       actions={
         <Button asChild className="gap-2">
           <Link to="/new">
             <Plus className="size-4" />
-            New ticket
+            {t("common.newTicket")}
           </Link>
         </Button>
       }
@@ -117,27 +141,27 @@ export default function Dashboard() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile
-            label="Assigned to me"
+            label={t("dashboard.assignedToMe")}
             value={mine?.assignedCount ?? 0}
-            hint="Unresolved tickets with your name on them"
+            hint={t("dashboard.assignedToMeHint")}
             icon={UserRound}
           />
           <StatTile
-            label="My open"
+            label={t("dashboard.myOpen")}
             value={mine?.open ?? 0}
-            hint="Tickets you logged that need work"
+            hint={t("dashboard.myOpenHint")}
             icon={Inbox}
           />
           <StatTile
-            label="Waiting"
+            label={t("dashboard.waiting")}
             value={mine?.waiting ?? 0}
-            hint="Answered, waiting on someone else"
+            hint={t("dashboard.waitingHint")}
             icon={Clock3}
           />
           <StatTile
-            label="Open todos"
+            label={t("dashboard.openTodos")}
             value={todos?.open ?? 0}
-            hint="On your personal list"
+            hint={t("dashboard.openTodosHint")}
             icon={ListTodo}
           />
         </div>
@@ -147,14 +171,14 @@ export default function Dashboard() {
             <CardHeader className="gap-0 border-b border-border/70 py-5">
               <CardTitle className="flex items-center gap-2 text-base">
                 <ClipboardList className="size-4 text-muted-foreground" />
-                Assigned to you
+                {t("dashboard.assignedCard")}
               </CardTitle>
               <CardDescription>
                 {mine && mine.assignedCount > 0
-                  ? `${mine.assignedCount} unresolved ticket${
-                      mine.assignedCount === 1 ? "" : "s"
-                    } in your name`
-                  : "Nothing is waiting on you right now"}
+                  ? t("dashboard.assignedCount", {
+                      count: mine.assignedCount,
+                    })
+                  : t("dashboard.assignedNone")}
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 py-0">
@@ -167,13 +191,19 @@ export default function Dashboard() {
                   <span className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-muted/40 text-muted-foreground">
                     <UserRound className="size-5" />
                   </span>
-                  <p className="mt-1 text-sm font-medium">Inbox zero</p>
-                  <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-                    Tickets appear here once you claim one. Pick up anything
-                    unowned from the catalog.
+                  <p className="mt-1 text-sm font-medium">
+                    {t("dashboard.inboxZero")}
                   </p>
-                  <Button asChild size="sm" variant="outline" className="mt-3 bg-card">
-                    <Link to="/catalog">Find something to pick up</Link>
+                  <p className="max-w-xs text-xs leading-5 text-muted-foreground">
+                    {t("dashboard.inboxZeroHint")}
+                  </p>
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 bg-card"
+                  >
+                    <Link to="/catalog">{t("dashboard.findWork")}</Link>
                   </Button>
                 </div>
               ) : (
@@ -188,11 +218,16 @@ export default function Dashboard() {
 
           <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
             <CardHeader className="gap-0 border-b border-border/70 py-5">
-              <CardTitle className="text-base">My tickets</CardTitle>
+              <CardTitle className="text-base">
+                {t("dashboard.myTickets")}
+              </CardTitle>
               <CardDescription>
                 {mine && mine.total > 0
-                  ? `${mine.total} you logged · ${mine.done} closed out`
-                  : "Nothing logged under your name yet"}
+                  ? t("dashboard.myTicketsTotal", {
+                      total: mine.total,
+                      done: mine.done,
+                    })
+                  : t("dashboard.myTicketsNone")}
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 py-0">
@@ -205,15 +240,16 @@ export default function Dashboard() {
                   <span className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-muted/40 text-muted-foreground">
                     <Inbox className="size-5" />
                   </span>
-                  <p className="mt-1 text-sm font-medium">No tickets yet</p>
+                  <p className="mt-1 text-sm font-medium">
+                    {t("dashboard.noTickets")}
+                  </p>
                   <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-                    Log something you are waiting on and it shows up here
-                    alongside the rest of the catalog.
+                    {t("dashboard.noTicketsHint")}
                   </p>
                   <Button asChild size="sm" className="mt-3 gap-1.5">
                     <Link to="/new">
                       <Plus className="size-3.5" />
-                      New ticket
+                      {t("common.newTicket")}
                     </Link>
                   </Button>
                 </div>
@@ -231,11 +267,14 @@ export default function Dashboard() {
         <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
           <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
             <CardHeader className="gap-0 border-b border-border/70 py-5">
-              <CardTitle className="text-base">Todos</CardTitle>
+              <CardTitle className="text-base">{t("dashboard.todos")}</CardTitle>
               <CardDescription>
                 {todos
-                  ? `${todos.open} open · ${todos.done} done`
-                  : "Your personal list"}
+                  ? t("dashboard.todoSummary", {
+                      open: todos.open,
+                      done: todos.done,
+                    })
+                  : t("dashboard.openTodosHint")}
               </CardDescription>
             </CardHeader>
 
@@ -246,7 +285,7 @@ export default function Dashboard() {
               <Input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="Add a todo"
+                placeholder={t("dashboard.todoAdd")}
                 className="h-9 bg-background"
               />
               <Button
@@ -254,7 +293,7 @@ export default function Dashboard() {
                 size="icon"
                 className="size-9 shrink-0"
                 disabled={draft.trim().length < 2}
-                aria-label="Add todo"
+                aria-label={t("dashboard.todoAdd")}
               >
                 <Plus className="size-4" />
               </Button>
@@ -267,8 +306,7 @@ export default function Dashboard() {
                 </div>
               ) : todos.items.length === 0 ? (
                 <p className="px-6 py-10 text-center text-xs leading-5 text-muted-foreground">
-                  Empty list. Todos are private to you — use them for follow-ups
-                  that do not deserve their own ticket.
+                  {t("dashboard.todoEmpty")}
                 </p>
               ) : (
                 <ul className="max-h-[22rem] divide-y divide-border/70 overflow-y-auto">
@@ -281,7 +319,9 @@ export default function Dashboard() {
                         type="button"
                         onClick={() => handleToggle(todo._id, !todo.done)}
                         aria-label={
-                          todo.done ? "Mark as not done" : "Mark as done"
+                          todo.done
+                            ? t("dashboard.markNotDone")
+                            : t("dashboard.markDone")
                         }
                         className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-primary"
                       >
@@ -301,15 +341,17 @@ export default function Dashboard() {
                           {todo.title}
                         </p>
                         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/80">
-                          added {timeAgo(todo.createdAt)}
-                          {todo.ticketId ? " · linked to ticket" : ""}
+                          {t("dashboard.todoAdded", {
+                            time: timeAgo(todo.createdAt),
+                          })}
+                          {todo.ticketId ? t("dashboard.todoLinked") : ""}
                         </p>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label="Delete todo"
+                        aria-label={t("dashboard.deleteTodo")}
                         onClick={() => handleDelete(todo._id)}
                         className="size-7 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
                       >
@@ -326,36 +368,13 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="size-4 text-muted-foreground" />
-                Across the team
+                {t("dashboard.teamCard")}
               </CardTitle>
-              <CardDescription>
-                The whole queue, not just your slice of it
-              </CardDescription>
+              <CardDescription>{t("dashboard.teamHint")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  {
-                    label: "Open",
-                    value: stats?.open ?? 0,
-                    hint: "Nobody has replied yet",
-                  },
-                  {
-                    label: "Waiting",
-                    value: stats?.pending ?? 0,
-                    hint: "Waiting on someone",
-                  },
-                  {
-                    label: "Urgent",
-                    value: stats?.needingAttention ?? 0,
-                    hint: "High or urgent, open",
-                  },
-                  {
-                    label: "Unassigned",
-                    value: stats?.unassigned ?? 0,
-                    hint: "Nobody owns these yet",
-                  },
-                ].map((item) => (
+                {teamTiles.map((item) => (
                   <div
                     key={item.label}
                     className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3"
@@ -374,14 +393,14 @@ export default function Dashboard() {
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button asChild variant="outline" className="bg-card">
-                  <Link to="/catalog">Browse the catalog</Link>
+                  <Link to="/catalog">{t("common.browseCatalog")}</Link>
                 </Button>
                 <Button
                   asChild
                   variant="ghost"
                   className="text-muted-foreground"
                 >
-                  <Link to="/admin">Open the admin area</Link>
+                  <Link to="/admin">{t("nav.admin")}</Link>
                 </Button>
               </div>
             </CardContent>

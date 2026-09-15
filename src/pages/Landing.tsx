@@ -1,4 +1,7 @@
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/hooks/use-i18n";
+import type { MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
@@ -14,76 +17,83 @@ import {
   SquareStack,
   Trash2,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
-const CAPABILITIES = [
-  {
-    icon: LogIn,
-    title: "Sign up in a minute",
-    body: "Sign in with a work email and a one-time code. No passwords to create, store, or rotate.",
-  },
-  {
-    icon: Layers,
-    title: "Browse the catalog",
-    body: "Every ticket the team has logged, grouped by status and ordered by the last thing that happened.",
-  },
-  {
-    icon: Search,
-    title: "Search that finds it",
-    body: "Match on title, reference, requester, or the latest comment, then narrow by status and priority.",
-  },
-  {
-    icon: Paperclip,
-    title: "Post and upload",
-    body: "Open a ticket with screenshots, logs, or documents attached — up to five files, 10 MB each.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Comment in context",
-    body: "The thread lives on the ticket, so nobody has to reconstruct the story from an inbox later.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Your own dashboard",
-    body: "The tickets you logged, what is waiting on you, and a private todo list beside them.",
-  },
-];
+const CAPABILITIES: { icon: LucideIcon; titleKey: MessageKey; bodyKey: MessageKey }[] =
+  [
+    {
+      icon: LogIn,
+      titleKey: "landing.capabilityOneTitle",
+      bodyKey: "landing.capabilityOneBody",
+    },
+    {
+      icon: Layers,
+      titleKey: "landing.capabilityTwoTitle",
+      bodyKey: "landing.capabilityTwoBody",
+    },
+    {
+      icon: Search,
+      titleKey: "landing.capabilityThreeTitle",
+      bodyKey: "landing.capabilityThreeBody",
+    },
+    {
+      icon: Paperclip,
+      titleKey: "landing.capabilityFourTitle",
+      bodyKey: "landing.capabilityFourBody",
+    },
+    {
+      icon: MessageSquare,
+      titleKey: "landing.capabilityFiveTitle",
+      bodyKey: "landing.capabilityFiveBody",
+    },
+    {
+      icon: LayoutDashboard,
+      titleKey: "landing.capabilitySixTitle",
+      bodyKey: "landing.capabilitySixBody",
+    },
+  ];
 
-const WORKFLOW = [
+const WORKFLOW: { step: string; titleKey: MessageKey; bodyKey: MessageKey }[] = [
   {
     step: "01",
-    title: "Log the request",
-    body: "Write the title, the details, and attach what matters. It lands in the catalog as open with normal priority.",
+    titleKey: "landing.workflowOneTitle",
+    bodyKey: "landing.workflowOneBody",
   },
   {
     step: "02",
-    title: "Triage it",
-    body: "Set status and priority from the ticket page or inline in the admin table. The queue reorders itself.",
+    titleKey: "landing.workflowTwoTitle",
+    bodyKey: "landing.workflowTwoBody",
   },
   {
     step: "03",
-    title: "Close the loop",
-    body: "Comment as you work, mark it resolved, and the thread keeps a searchable record of what happened.",
+    titleKey: "landing.workflowThreeTitle",
+    bodyKey: "landing.workflowThreeBody",
   },
 ];
 
-const PREVIEW_ROWS = [
+const PREVIEW_ROWS: {
+  reference: string;
+  subjectKey: MessageKey;
+  chipKey: MessageKey;
+  chipClass: string;
+}[] = [
   {
     reference: "INT-8F3KQ",
-    subject: "Rotate the staging API keys before Friday",
-    chip: "Open",
+    subjectKey: "landing.previewRowOne",
+    chipKey: "landing.previewOpen",
     chipClass: "bg-primary/14 text-primary",
   },
   {
     reference: "INT-2MQ7P",
-    subject: "Deploy runbook is out of date",
-    chip: "Urgent",
+    subjectKey: "landing.previewRowTwo",
+    chipKey: "landing.previewUrgent",
     chipClass: "bg-destructive/16 text-destructive",
   },
   {
     reference: "INT-9WD4R",
-    subject: "Import fails on files larger than 5 MB",
-    chip: "Waiting",
+    subjectKey: "landing.previewRowThree",
+    chipKey: "landing.previewWaiting",
     chipClass: "bg-amber-500/14 text-amber-700 dark:text-amber-300",
   },
 ];
@@ -96,40 +106,48 @@ const fadeUp = {
 };
 
 export default function Landing() {
+  const { t } = useI18n();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3.5 sm:px-8">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-3.5 sm:px-8">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-card text-primary">
               <SquareStack className="size-4" />
             </span>
             <span className="leading-tight">
               <span className="block text-[15px] font-semibold tracking-tight">
-                Intake
+                {t("brand.name")}
               </span>
               <span className="block font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-                internal ticketing
+                {t("brand.tagline")}
               </span>
             </span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
-            <a href="#capabilities" className="transition-colors hover:text-foreground">
-              Capabilities
+            <a
+              href="#capabilities"
+              className="transition-colors hover:text-foreground"
+            >
+              {t("landing.navCapabilities")}
             </a>
             <a href="#workflow" className="transition-colors hover:text-foreground">
-              Workflow
+              {t("landing.navWorkflow")}
             </a>
             <a href="#desk" className="transition-colors hover:text-foreground">
-              The desk
+              {t("landing.navDesk")}
             </a>
           </nav>
-          <Button asChild size="sm" className="gap-1.5">
-            <Link to="/auth?returnTo=%2Fdashboard">
-              Sign in
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <Button asChild size="sm" className="gap-1.5">
+              <Link to="/auth?returnTo=%2Fdashboard">
+                {t("landing.signIn")}
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -144,42 +162,38 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             >
-              <p className="mono-label">Internal ticketing system</p>
+              <p className="mono-label">{t("landing.overline")}</p>
 
               <h1 className="mt-5 text-[2.4rem] font-semibold leading-[1.05] tracking-tight text-balance sm:text-5xl lg:text-[3.4rem]">
-                Every request the team owes,
-                <span className="text-primary"> in one quiet queue</span>.
+                {t("landing.heroTitle")}
+                <span className="text-primary">{t("landing.heroAccent")}</span>
               </h1>
 
-              <p className="mt-5 max-w-xl text-[15px] leading-7 text-muted-foreground">
-                Intake is a private ticketing desk for a handful of people. Log
-                what you are waiting on, comment in context, attach the file that
-                explains it, and keep a todo list that stays yours.
+              <p className="mt-5 max-w-xl text-[15px] leading-8 text-muted-foreground">
+                {t("landing.heroBody")}
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Button asChild size="lg" className="gap-2">
                   <Link to="/auth?returnTo=%2Fdashboard">
-                    Sign in or create an account
+                    {t("landing.ctaPrimary")}
                     <ArrowRight className="size-4" />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="bg-card">
-                  <a href="#capabilities">See what it does</a>
+                  <a href="#capabilities">{t("landing.ctaSecondary")}</a>
                 </Button>
               </div>
 
               <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-3 border-t border-border/70 pt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                {[
-                  "one-time code sign-in",
-                  "full-text search",
-                  "attachments up to 10 MB",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <CheckCircle2 className="size-3.5 text-primary" />
-                    {item}
-                  </li>
-                ))}
+                {[t("landing.factCode"), t("landing.factSearch"), t("landing.factFiles")].map(
+                  (item) => (
+                    <li key={item} className="flex items-center gap-2">
+                      <CheckCircle2 className="size-3.5 text-primary" />
+                      {item}
+                    </li>
+                  ),
+                )}
               </ul>
             </motion.div>
 
@@ -196,36 +210,40 @@ export default function Landing() {
                     <span className="size-2.5 rounded-full bg-foreground/15" />
                     <span className="size-2.5 rounded-full bg-foreground/15" />
                     <span className="size-2.5 rounded-full bg-foreground/15" />
-                    <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                      catalog
+                    <span className="ms-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {t("landing.previewTitle")}
                     </span>
                   </div>
                   <span className="rounded-full border border-border/70 bg-card px-2.5 py-1 font-mono text-[10px] text-muted-foreground">
-                    10 tickets
+                    {t("landing.previewCount")}
                   </span>
                 </div>
 
                 <div className="space-y-5 px-4 py-5">
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: "Open", value: "3", tone: "text-primary" },
                       {
-                        label: "Waiting",
+                        labelKey: "landing.previewOpen" as MessageKey,
+                        value: "3",
+                        tone: "text-primary",
+                      },
+                      {
+                        labelKey: "landing.previewWaiting" as MessageKey,
                         value: "4",
                         tone: "text-amber-600 dark:text-amber-300",
                       },
                       {
-                        label: "Resolved",
+                        labelKey: "landing.previewResolved" as MessageKey,
                         value: "2",
                         tone: "text-emerald-600 dark:text-emerald-300",
                       },
                     ].map((stat) => (
                       <div
-                        key={stat.label}
+                        key={stat.labelKey}
                         className="rounded-xl border border-border/70 bg-background/60 p-3"
                       >
                         <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                          {stat.label}
+                          {t(stat.labelKey)}
                         </p>
                         <p
                           className={cn(
@@ -247,7 +265,7 @@ export default function Landing() {
                       >
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium">
-                            {row.subject}
+                            {t(row.subjectKey)}
                           </p>
                           <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                             {row.reference}
@@ -259,7 +277,7 @@ export default function Landing() {
                             row.chipClass,
                           )}
                         >
-                          {row.chip}
+                          {t(row.chipKey)}
                         </span>
                       </div>
                     ))}
@@ -268,34 +286,36 @@ export default function Landing() {
                   <div className="rounded-xl border border-border/70 bg-foreground/[0.03] p-3.5">
                     <div className="flex items-center gap-2">
                       <span className="flex size-6 items-center justify-center rounded-full bg-primary/12 font-mono text-[10px] text-primary">
-                        MO
+                        {t("landing.previewCommentInitials")}
                       </span>
                       <span className="text-[12px] font-medium">
-                        Maya Okafor
+                        {t("landing.previewCommentName")}
                       </span>
                       <span className="font-mono text-[10px] text-muted-foreground">
-                        2h ago
+                        {t("landing.previewCommentTime")}
                       </span>
                     </div>
-                    <p className="mt-2 text-[13px] leading-6 text-foreground/90">
-                      Confirmed on my machine too. The uploader rejects anything
-                      over 5 MB, so I raised the limit to 20 MB on my branch.
+                    <p className="mt-2 text-[13px] leading-7 text-foreground/90">
+                      {t("landing.previewCommentBody")}
                     </p>
                     <div className="mt-3 flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-1.5">
                       <Paperclip className="size-3.5 text-muted-foreground" />
-                      <span className="truncate text-[11px]">
-                        deploy-log.txt
+                      <span className="truncate text-[11px]" dir="ltr">
+                        {t("landing.previewFile")}
                       </span>
-                      <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                        128 KB
+                      <span className="ms-auto font-mono text-[10px] text-muted-foreground">
+                        {t("landing.previewSize")}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="border-t border-border/70 bg-foreground/[0.03] px-4 py-2.5">
-                  <p className="truncate font-mono text-[10px] text-muted-foreground">
-                    select * from tickets order by last_activity_at desc;
+                  <p
+                    dir="ltr"
+                    className="truncate text-start font-mono text-[10px] text-muted-foreground"
+                  >
+                    {t("landing.previewQuery")}
                   </p>
                 </div>
               </div>
@@ -309,29 +329,31 @@ export default function Landing() {
         >
           <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8">
             <motion.div {...fadeUp} className="max-w-2xl">
-              <p className="mono-label">Capabilities</p>
+              <p className="mono-label">{t("landing.capabilitiesOverline")}</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Everything a small team actually needs
+                {t("landing.capabilitiesTitle")}
               </h2>
-              <p className="mt-4 text-[15px] leading-7 text-muted-foreground">
-                Accounts, a searchable catalog, detail pages, file uploads,
-                comments, personal todos, and an admin area. Nothing else
-                competing for attention.
+              <p className="mt-4 text-[15px] leading-8 text-muted-foreground">
+                {t("landing.capabilitiesBody")}
               </p>
             </motion.div>
 
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {CAPABILITIES.map((capability) => (
-                <motion.div key={capability.title} {...fadeUp} className="h-full">
+                <motion.div
+                  key={capability.titleKey}
+                  {...fadeUp}
+                  className="h-full"
+                >
                   <div className="flex h-full flex-col rounded-2xl border border-border/70 bg-card p-6 transition-colors hover:border-primary/30">
                     <span className="flex size-9 items-center justify-center rounded-lg border border-border/70 bg-primary/10 text-primary">
                       <capability.icon className="size-4" />
                     </span>
                     <h3 className="mt-4 text-[15px] font-semibold tracking-tight">
-                      {capability.title}
+                      {t(capability.titleKey)}
                     </h3>
-                    <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
-                      {capability.body}
+                    <p className="mt-2 text-[13px] leading-7 text-muted-foreground">
+                      {t(capability.bodyKey)}
                     </p>
                   </div>
                 </motion.div>
@@ -343,9 +365,9 @@ export default function Landing() {
         <section id="workflow" className="border-b border-border/70">
           <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8">
             <motion.div {...fadeUp} className="max-w-2xl">
-              <p className="mono-label">Workflow</p>
+              <p className="mono-label">{t("landing.workflowOverline")}</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                From request to record in three moves
+                {t("landing.workflowTitle")}
               </h2>
             </motion.div>
 
@@ -357,10 +379,10 @@ export default function Landing() {
                       {item.step}
                     </span>
                     <h3 className="mt-4 text-[15px] font-semibold tracking-tight">
-                      {item.title}
+                      {t(item.titleKey)}
                     </h3>
-                    <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
-                      {item.body}
+                    <p className="mt-2 text-[13px] leading-7 text-muted-foreground">
+                      {t(item.bodyKey)}
                     </p>
                   </div>
                 </motion.div>
@@ -380,27 +402,23 @@ export default function Landing() {
                   <ShieldCheck className="size-5" />
                 </span>
                 <h2 className="mt-5 text-xl font-semibold tracking-tight">
-                  Run the desk from the admin area
+                  {t("landing.manageTitle")}
                 </h2>
-                <p className="mt-3 text-[14px] leading-7 text-muted-foreground">
-                  Team-wide numbers first: volume by day, what is unresolved,
-                  how long a first response usually takes, and which tickets
-                  have been sitting the longest.
+                <p className="mt-3 text-[14px] leading-8 text-muted-foreground">
+                  {t("landing.manageBody")}
                 </p>
-                <ul className="mt-5 space-y-3 text-[13px] leading-6 text-muted-foreground">
+                <ul className="mt-5 space-y-3 text-[13px] leading-7 text-muted-foreground">
                   <li className="flex gap-2.5">
-                    <Layers className="mt-0.5 size-4 shrink-0 text-primary" />
-                    Inline status and priority on every row, no page hopping.
+                    <Layers className="mt-1 size-4 shrink-0 text-primary" />
+                    {t("landing.manageOne")}
                   </li>
                   <li className="flex gap-2.5">
-                    <Trash2 className="mt-0.5 size-4 shrink-0 text-primary" />
-                    Delete tickets you logged by mistake, with their files and
-                    comments cleaned up.
+                    <Trash2 className="mt-1 size-4 shrink-0 text-primary" />
+                    {t("landing.manageTwo")}
                   </li>
                   <li className="flex gap-2.5">
-                    <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-                    Every screen sits behind an account, so the catalog is not
-                    public.
+                    <ShieldCheck className="mt-1 size-4 shrink-0 text-primary" />
+                    {t("landing.manageThree")}
                   </li>
                 </ul>
               </div>
@@ -412,27 +430,23 @@ export default function Landing() {
                   <LayoutDashboard className="size-5" />
                 </span>
                 <h2 className="mt-5 text-xl font-semibold tracking-tight">
-                  Track your own work too
+                  {t("landing.ownTitle")}
                 </h2>
-                <p className="mt-3 text-[14px] leading-7 text-muted-foreground">
-                  Your dashboard is the small slice that belongs to you: the
-                  tickets you opened, what is waiting on someone else, and the
-                  todos that never needed a ticket of their own.
+                <p className="mt-3 text-[14px] leading-8 text-muted-foreground">
+                  {t("landing.ownBody")}
                 </p>
-                <ul className="mt-5 space-y-3 text-[13px] leading-6 text-muted-foreground">
+                <ul className="mt-5 space-y-3 text-[13px] leading-7 text-muted-foreground">
                   <li className="flex gap-2.5">
-                    <LayoutDashboard className="mt-0.5 size-4 shrink-0 text-primary" />
-                    Counts update as the queue moves, because they read the same
-                    data.
+                    <LayoutDashboard className="mt-1 size-4 shrink-0 text-primary" />
+                    {t("landing.ownOne")}
                   </li>
                   <li className="flex gap-2.5">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
-                    Todos are private to you and can be linked to a ticket.
+                    <CheckCircle2 className="mt-1 size-4 shrink-0 text-primary" />
+                    {t("landing.ownTwo")}
                   </li>
                   <li className="flex gap-2.5">
-                    <MessageSquare className="mt-0.5 size-4 shrink-0 text-primary" />
-                    Commenting as the requester reopens a ticket; anyone else
-                    moves it to waiting.
+                    <MessageSquare className="mt-1 size-4 shrink-0 text-primary" />
+                    {t("landing.ownThree")}
                   </li>
                 </ul>
               </div>
@@ -446,24 +460,24 @@ export default function Landing() {
               <div className="surface-grid pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(55%_60%_at_50%_0%,black,transparent)]" />
               <div className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[36rem] -translate-x-1/2 rounded-full bg-primary/12 blur-[110px]" />
               <div className="relative">
-                <p className="mono-label">Invite only by design</p>
+                <p className="mono-label">{t("landing.ctaOverline")}</p>
                 <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-                  Give the team a desk, keep the catalog private
+                  {t("landing.ctaTitle")}
                 </h2>
-                <p className="mx-auto mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground">
-                  Sign in with a work email and Intake creates your account on
-                  the spot. Tickets, comments, and todos are visible to
-                  signed-in teammates only.
+                <p className="mx-auto mt-4 max-w-xl text-[15px] leading-8 text-muted-foreground">
+                  {t("landing.ctaBody")}
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-3">
                   <Button asChild size="lg" className="gap-2">
                     <Link to="/auth?returnTo=%2Fdashboard">
-                      Sign in or create an account
+                      {t("landing.ctaFinalPrimary")}
                       <ArrowRight className="size-4" />
                     </Link>
                   </Button>
                   <Button asChild size="lg" variant="outline">
-                    <Link to="/auth?returnTo=%2Fadmin">Go to the admin area</Link>
+                    <Link to="/auth?returnTo=%2Fadmin">
+                      {t("landing.ctaFinalSecondary")}
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -479,21 +493,21 @@ export default function Landing() {
               <SquareStack className="size-3.5" />
             </span>
             <span className="text-[13px] font-medium text-foreground">
-              Intake
+              {t("brand.name")}
             </span>
             <span className="font-mono text-[10px] uppercase tracking-[0.14em]">
-              internal ticketing
+              {t("brand.tagline")}
             </span>
           </div>
           <div className="flex items-center gap-6 font-mono text-[11px] uppercase tracking-[0.14em]">
             <Link to="/catalog" className="transition-colors hover:text-foreground">
-              Catalog
+              {t("nav.catalog")}
             </Link>
             <Link
               to="/auth?returnTo=%2Fdashboard"
               className="transition-colors hover:text-foreground"
             >
-              Sign in
+              {t("landing.signIn")}
             </Link>
           </div>
         </div>

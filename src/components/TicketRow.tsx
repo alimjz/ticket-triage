@@ -1,8 +1,10 @@
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/hooks/use-i18n";
 import {
-  PRIORITY_META,
-  STATUS_META,
-  timeAgo,
+  PRIORITY_BADGE,
+  PRIORITY_LABEL_KEY,
+  STATUS_BADGE,
+  STATUS_LABEL_KEY,
   type TicketPriority,
   type TicketStatus,
 } from "@/lib/tickets";
@@ -10,17 +12,17 @@ import { cn } from "@/lib/utils";
 import { Link } from "react-router";
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
+  const { t } = useI18n();
   return (
-    <Badge className={STATUS_META[status].badge}>
-      {STATUS_META[status].label}
-    </Badge>
+    <Badge className={STATUS_BADGE[status]}>{t(STATUS_LABEL_KEY[status])}</Badge>
   );
 }
 
 export function PriorityBadge({ priority }: { priority: TicketPriority }) {
+  const { t } = useI18n();
   return (
-    <Badge className={PRIORITY_META[priority].badge}>
-      {PRIORITY_META[priority].label}
+    <Badge className={PRIORITY_BADGE[priority]}>
+      {t(PRIORITY_LABEL_KEY[priority])}
     </Badge>
   );
 }
@@ -43,6 +45,8 @@ export function TicketRow({
   ticket: TicketRowTicket;
   className?: string;
 }) {
+  const { t, timeAgo } = useI18n();
+
   return (
     <Link
       to={`/catalog/${ticket._id}`}
@@ -64,7 +68,9 @@ export function TicketRow({
               !ticket.assigneeName && "italic text-muted-foreground/70",
             )}
           >
-            {ticket.assigneeName ? `@${ticket.assigneeName}` : "unassigned"}
+            {ticket.assigneeName
+              ? `@${ticket.assigneeName}`
+              : t("common.unassigned")}
           </span>
           <span className="text-border">/</span>
           <span className="tabular-nums">{timeAgo(ticket.lastActivityAt)}</span>

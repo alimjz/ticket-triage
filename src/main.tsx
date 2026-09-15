@@ -1,8 +1,11 @@
 import '@vly-ai/integrations';
 import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider } from "@/components/I18nProvider";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useI18n } from "@/hooks/use-i18n";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { DirectionProvider } from "@radix-ui/react-direction";
 import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
@@ -21,11 +24,20 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="animate-pulse text-muted-foreground">
+        {t("common.loading")}
+      </div>
     </div>
   );
+}
+
+/** Keeps Radix primitives (selects, dialogs, menus) in the active direction. */
+function DirectionBridge({ children }: { children: React.ReactNode }) {
+  const { dir } = useI18n();
+  return <DirectionProvider dir={dir}>{children}</DirectionProvider>;
 }
 
 /** Silent error boundary — if VlyToolbar crashes it renders nothing instead of
@@ -119,60 +131,64 @@ createRoot(document.getElementById("root")!).render(
         <VlyToolbar />
       </ToolbarErrorBoundary>
       <ConvexAuthProvider client={convex}>
-        <BrowserRouter>
-          <RouteSyncer />
-          <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route
-                path="/auth"
-                element={<AuthPage redirectAfterAuth="/dashboard" />}
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth>
-                    <Dashboard />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/catalog"
-                element={
-                  <RequireAuth>
-                    <Catalog />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/catalog/:ticketId"
-                element={
-                  <RequireAuth>
-                    <CatalogItem />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/new"
-                element={
-                  <RequireAuth>
-                    <NewTicket />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/admin"
-                element={
-                  <RequireAuth>
-                    <Admin />
-                  </RequireAuth>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-        <Toaster />
+        <I18nProvider>
+          <DirectionBridge>
+            <BrowserRouter>
+              <RouteSyncer />
+              <Suspense fallback={<RouteLoading />}>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route
+                    path="/auth"
+                    element={<AuthPage redirectAfterAuth="/dashboard" />}
+                  />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <RequireAuth>
+                        <Dashboard />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/catalog"
+                    element={
+                      <RequireAuth>
+                        <Catalog />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/catalog/:ticketId"
+                    element={
+                      <RequireAuth>
+                        <CatalogItem />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/new"
+                    element={
+                      <RequireAuth>
+                        <NewTicket />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <RequireAuth>
+                        <Admin />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+            <Toaster />
+          </DirectionBridge>
+        </I18nProvider>
       </ConvexAuthProvider>
     </RootErrorBoundary>
   </StrictMode>,

@@ -1,7 +1,9 @@
 {
-  "name": "Intake — Internal ticketing",
+  "name": "Intake — سیستم تیکتینگ داخلی",
   "short_name": "Intake",
-  "description": "A private ticketing system for a small team: tickets, comments, files, and personal todos.",
+  "description": "یک سیستم تیکتینگ خصوصی برای تیم‌های کوچک: تیکت‌ها، نظرات، فایل‌ها و کارهای شخصی.",
+  "lang": "fa",
+  "dir": "rtl",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#15171e",

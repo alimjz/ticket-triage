@@ -12,31 +12,36 @@ import {
 } from "@/components/ui/select";
 import { api } from "@/convex/_generated/api";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
+import { useI18n } from "@/hooks/use-i18n";
 import { errorMessage } from "@/lib/errors";
-import { PRIORITY_META, PRIORITY_ORDER, timeAgo } from "@/lib/tickets";
+import type { MessageKey } from "@/lib/i18n";
+import {
+  PRIORITY_LABEL_KEY,
+  PRIORITY_ORDER,
+  STATUS_LABEL_KEY,
+} from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
-import { Loader2, Plus, Search, Sparkles, Layers } from "lucide-react";
+import { Layers, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
 type StatusFilter = "all" | TicketStatus;
 
-const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "pending", label: "Waiting" },
-  { value: "resolved", label: "Resolved" },
-  { value: "closed", label: "Closed" },
+const STATUS_FILTERS: { value: StatusFilter; labelKey: MessageKey }[] = [
+  { value: "all", labelKey: "filters.all" },
+  { value: "open", labelKey: STATUS_LABEL_KEY.open },
+  { value: "pending", labelKey: STATUS_LABEL_KEY.pending },
+  { value: "resolved", labelKey: STATUS_LABEL_KEY.resolved },
+  { value: "closed", labelKey: STATUS_LABEL_KEY.closed },
 ];
 
 export default function Catalog() {
+  const { t, timeAgo } = useI18n();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [priority, setPriority] = useState<"all" | TicketPriority>("all");
-  const [assignee, setAssignee] = useState<"any" | "me" | "unassigned">(
-    "any",
-  );
+  const [assignee, setAssignee] = useState<"any" | "me" | "unassigned">("any");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSeeding, setIsSeeding] = useState(false);
@@ -76,11 +81,11 @@ export default function Catalog() {
       const result = await seedSampleTickets({});
       toast(
         result.inserted > 0
-          ? `Loaded ${result.inserted} sample tickets`
-          : "The catalog already has tickets",
+          ? t("toasts.sampleLoaded", { count: result.inserted })
+          : t("toasts.sampleExists"),
       );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not load sample tickets."));
+      toast.error(errorMessage(caught, t("errors.loadSample")));
     } finally {
       setIsSeeding(false);
     }
@@ -88,13 +93,13 @@ export default function Catalog() {
 
   return (
     <AppShell
-      title="Catalog"
-      description="Every ticket the team has logged, searchable in one place."
+      title={t("catalog.title")}
+      description={t("catalog.description")}
       actions={
         <Button asChild className="gap-2">
           <Link to="/new">
             <Plus className="size-4" />
-            New ticket
+            {t("common.newTicket")}
           </Link>
         </Button>
       }
@@ -114,7 +119,7 @@ export default function Catalog() {
                     : "border-border/70 bg-card text-muted-foreground hover:text-foreground",
                 )}
               >
-                {filter.label}
+                {t(filter.labelKey)}
                 {counts[filter.value] !== undefined ? (
                   <span
                     className={cn(
@@ -133,12 +138,12 @@ export default function Catalog() {
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search title, reference, or requester"
-                className="h-9 w-full bg-card pl-9 sm:w-72"
+                placeholder={t("catalog.search")}
+                className="h-9 w-full bg-card ps-9 sm:w-72"
               />
             </div>
             <Select
@@ -148,13 +153,13 @@ export default function Catalog() {
               }
             >
               <SelectTrigger className="h-9 w-full bg-card sm:w-40">
-                <SelectValue placeholder="Priority" />
+                <SelectValue placeholder={t("catalog.columnPriority")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="all">{t("filters.allPriorities")}</SelectItem>
                 {PRIORITY_ORDER.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {PRIORITY_META[value].label}
+                    {t(PRIORITY_LABEL_KEY[value])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -169,9 +174,11 @@ export default function Catalog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="any">Any owner</SelectItem>
-                <SelectItem value="me">Assigned to me</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="any">{t("filters.anyOwner")}</SelectItem>
+                <SelectItem value="me">{t("filters.mine")}</SelectItem>
+                <SelectItem value="unassigned">
+                  {t("filters.unassigned")}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -179,11 +186,11 @@ export default function Catalog() {
 
         <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
           <div className="hidden items-center gap-4 border-b border-border/70 bg-muted/20 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground md:flex">
-            <span className="flex-1">Ticket</span>
-            <span className="w-44">Owner</span>
-            <span className="w-24 text-right">Priority</span>
-            <span className="w-24 text-right">Status</span>
-            <span className="w-20 text-right">Updated</span>
+            <span className="flex-1">{t("catalog.columnTicket")}</span>
+            <span className="w-44">{t("catalog.columnOwner")}</span>
+            <span className="w-24 text-end">{t("catalog.columnPriority")}</span>
+            <span className="w-24 text-end">{t("catalog.columnStatus")}</span>
+            <span className="w-20 text-end">{t("catalog.columnUpdated")}</span>
           </div>
 
           {tickets === undefined ? (
@@ -196,14 +203,12 @@ export default function Catalog() {
                 <Layers className="size-5" />
               </span>
               <p className="mt-1 text-sm font-medium">
-                {isFiltered
-                  ? "No tickets match these filters"
-                  : "Nothing in the catalog yet"}
+                {isFiltered ? t("catalog.emptyFiltered") : t("catalog.emptyNone")}
               </p>
               <p className="max-w-sm text-xs leading-5 text-muted-foreground">
                 {isFiltered
-                  ? "Try a different status, priority, owner, or search term."
-                  : "Log the first ticket, or load a sample queue to see how triage works."}
+                  ? t("catalog.emptyFilteredHint")
+                  : t("catalog.emptyNoneHint")}
               </p>
               {isFiltered ? (
                 <Button
@@ -217,14 +222,14 @@ export default function Catalog() {
                     setSearch("");
                   }}
                 >
-                  Clear filters
+                  {t("filters.clear")}
                 </Button>
               ) : (
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <Button asChild size="sm" className="gap-1.5">
                     <Link to="/new">
                       <Plus className="size-3.5" />
-                      New ticket
+                      {t("common.newTicket")}
                     </Link>
                   </Button>
                   <Button
@@ -239,7 +244,7 @@ export default function Catalog() {
                     ) : (
                       <Sparkles className="size-3.5" />
                     )}
-                    Load sample tickets
+                    {t("catalog.loadSample")}
                   </Button>
                 </div>
               )}
@@ -271,19 +276,19 @@ export default function Catalog() {
                         !ticket.assigneeName && "italic text-muted-foreground",
                       )}
                     >
-                      {ticket.assigneeName ?? "Unassigned"}
+                      {ticket.assigneeName ?? t("common.unassigned")}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      logged by {ticket.customerName}
+                      {t("catalog.loggedBy", { name: ticket.customerName })}
                     </p>
                   </div>
-                  <div className="md:w-24 md:text-right">
+                  <div className="md:w-24 md:text-end">
                     <PriorityBadge priority={ticket.priority} />
                   </div>
-                  <div className="md:w-24 md:text-right">
+                  <div className="md:w-24 md:text-end">
                     <StatusBadge status={ticket.status} />
                   </div>
-                  <div className="font-mono text-[11px] tabular-nums text-muted-foreground md:w-20 md:text-right">
+                  <div className="font-mono text-[11px] tabular-nums text-muted-foreground md:w-20 md:text-end">
                     {timeAgo(ticket.lastActivityAt)}
                   </div>
                 </Link>
@@ -294,8 +299,9 @@ export default function Catalog() {
 
         {tickets !== undefined && tickets.length > 0 ? (
           <p className="px-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            {tickets.length} ticket{tickets.length === 1 ? "" : "s"}
-            {isFiltered ? " matching filters" : " on record"}
+            {isFiltered
+              ? t("catalog.matching", { count: tickets.length })
+              : t("catalog.onRecord", { count: tickets.length })}
           </p>
         ) : null}
       </div>

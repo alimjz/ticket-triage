@@ -22,17 +22,15 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useI18n } from "@/hooks/use-i18n";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { errorMessage } from "@/lib/errors";
 import {
-  PRIORITY_META,
+  PRIORITY_LABEL_KEY,
   PRIORITY_ORDER,
-  STATUS_META,
+  STATUS_LABEL_KEY,
   STATUS_ORDER,
   formatBytes,
-  formatDateTime,
-  formatMinutes,
-  timeAgo,
 } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
@@ -62,6 +60,7 @@ function initials(name: string) {
 
 export default function TicketDetail() {
   const { ticketId } = useParams<{ ticketId: string }>();
+  const { t, timeAgo, formatDateTime, formatMinutes } = useI18n();
   const { user } = useAuth();
   const data = useQuery(
     api.tickets.getTicket,
@@ -87,9 +86,9 @@ export default function TicketDetail() {
     try {
       await addComment({ ticketId: ticket._id, body: comment });
       setComment("");
-      toast.success("Comment posted");
+      toast.success(t("toasts.commentPosted"));
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not post that comment."));
+      toast.error(errorMessage(caught, t("errors.postComment")));
     } finally {
       setIsPosting(false);
     }
@@ -99,9 +98,11 @@ export default function TicketDetail() {
     if (!ticket) return;
     try {
       await updateTicket({ ticketId: ticket._id, status });
-      toast.success(`Status set to ${STATUS_META[status].label.toLowerCase()}`);
+      toast.success(
+        t("toasts.statusSet", { status: t(STATUS_LABEL_KEY[status]) }),
+      );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not update the status."));
+      toast.error(errorMessage(caught, t("errors.updateStatus")));
     }
   };
 
@@ -110,10 +111,10 @@ export default function TicketDetail() {
     try {
       await updateTicket({ ticketId: ticket._id, priority });
       toast.success(
-        `Priority set to ${PRIORITY_META[priority].label.toLowerCase()}`,
+        t("toasts.prioritySet", { priority: t(PRIORITY_LABEL_KEY[priority]) }),
       );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not update the priority."));
+      toast.error(errorMessage(caught, t("errors.updatePriority")));
     }
   };
 
@@ -121,9 +122,11 @@ export default function TicketDetail() {
     if (!ticket) return;
     try {
       await updateTicket({ ticketId: ticket._id, assigneeId });
-      toast.success(assigneeId ? "Owner updated" : "Owner cleared");
+      toast.success(
+        assigneeId ? t("toasts.ownerUpdated") : t("toasts.ownerCleared"),
+      );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not change the owner."));
+      toast.error(errorMessage(caught, t("errors.updateOwner")));
     }
   };
 
@@ -131,23 +134,23 @@ export default function TicketDetail() {
     if (!ticket) return;
     try {
       await createTodo({
-        title: `Follow up: ${ticket.subject}`,
+        title: t("ticket.followUpTodo", { subject: ticket.subject }),
         ticketId: ticket._id,
       });
-      toast.success("Added to your todos", {
+      toast.success(t("toasts.todoAdded"), {
         action: {
-          label: "Open dashboard",
+          label: t("toasts.todoOpen"),
           onClick: () => navigate("/dashboard"),
         },
       });
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not add that todo."));
+      toast.error(errorMessage(caught, t("errors.addTodo")));
     }
   };
 
   if (data === undefined) {
     return (
-      <AppShell title="Ticket">
+      <AppShell title={t("common.loading")}>
         <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
@@ -157,16 +160,14 @@ export default function TicketDetail() {
 
   if (ticket === null) {
     return (
-      <AppShell title="Ticket not found">
+      <AppShell title={t("notFound.title")}>
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardContent className="flex flex-col items-start gap-3 py-8">
-            <p className="text-sm text-muted-foreground">
-              This ticket no longer exists, or the link is out of date.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("ticket.missing")}</p>
             <Button asChild variant="outline" className="bg-card">
               <Link to="/catalog">
                 <ArrowLeft className="size-4" />
-                Back to catalog
+                {t("ticket.backToCatalog")}
               </Link>
             </Button>
           </CardContent>
@@ -184,9 +185,9 @@ export default function TicketDetail() {
   return (
     <AppShell
       title={ticket.subject}
-      description={`${ticket.reference} · logged by ${ticket.customerName} ${timeAgo(
-        ticket.createdAt,
-      )}`}
+      description={`${ticket.reference} · ${t("catalog.loggedBy", {
+        name: ticket.customerName,
+      })} ${timeAgo(ticket.createdAt)}`}
       actions={
         <>
           <PriorityBadge priority={ticket.priority} />
@@ -194,7 +195,7 @@ export default function TicketDetail() {
           <Button asChild variant="outline" className="gap-2 bg-card">
             <Link to="/catalog">
               <ArrowLeft className="size-4" />
-              Catalog
+              {t("ticket.backToCatalog")}
             </Link>
           </Button>
         </>
@@ -204,11 +205,13 @@ export default function TicketDetail() {
         <div className="flex flex-col gap-6">
           <Card className="rounded-2xl border-border/70 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Request</CardTitle>
+              <CardTitle className="text-base">{t("ticket.request")}</CardTitle>
               <CardDescription>
                 <span className="font-mono text-[11px]">{ticket.reference}</span>
-                {" · opened "}
-                {formatDateTime(ticket.createdAt)}
+                {" · "}
+                {t("ticket.openedAt", {
+                  date: formatDateTime(ticket.createdAt),
+                })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -231,7 +234,7 @@ export default function TicketDetail() {
                   <Separator />
                   <div>
                     <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      Attachments
+                      {t("ticket.attachments")}
                     </p>
                     <ul className="mt-3 space-y-2">
                       {attachments.map((file) => (
@@ -254,7 +257,7 @@ export default function TicketDetail() {
                               className="flex shrink-0 items-center gap-1.5 text-[12px] text-primary hover:underline"
                             >
                               <Download className="size-3.5" />
-                              Download
+                              {t("ticket.download")}
                             </a>
                           ) : null}
                         </li>
@@ -268,13 +271,11 @@ export default function TicketDetail() {
 
           <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
             <CardHeader className="gap-0 border-b border-border/70 py-5">
-              <CardTitle className="text-base">Discussion</CardTitle>
+              <CardTitle className="text-base">{t("ticket.discussion")}</CardTitle>
               <CardDescription>
                 {discussion.length === 0
-                  ? "No comments yet — start the thread"
-                  : `${discussion.length} comment${
-                      discussion.length === 1 ? "" : "s"
-                    }`}
+                  ? t("ticket.noComments")
+                  : t("ticket.commentCount", { count: discussion.length })}
               </CardDescription>
             </CardHeader>
 
@@ -297,7 +298,7 @@ export default function TicketDetail() {
                       <div className="min-w-0">
                         <p className="flex flex-wrap items-center gap-2 text-[13px]">
                           <span className="font-medium">
-                            {isMine ? "You" : message.authorName}
+                            {isMine ? t("ticket.you") : message.authorName}
                           </span>
                           <span className="font-mono text-[11px] text-muted-foreground">
                             {timeAgo(message.createdAt)}
@@ -316,25 +317,27 @@ export default function TicketDetail() {
             <div className="border-t border-border/70 bg-muted/10 px-6 py-5">
               <div className="flex items-center gap-2 text-[13px] font-medium">
                 <MessageSquare className="size-4 text-primary" />
-                Add a comment
+                {t("ticket.addComment")}
               </div>
               <Textarea
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
                 onKeyDown={(event) => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    event.key === "Enter"
+                  ) {
                     event.preventDefault();
                     void handleComment();
                   }
                 }}
-                placeholder="Share findings, blockers, or the next step."
+                placeholder={t("ticket.commentPlaceholder")}
                 className="mt-3 min-h-24 bg-background"
                 disabled={isPosting}
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
-                  A comment from the requester reopens the ticket; anyone else
-                  moves it to waiting. ⌘/Ctrl + Enter to post.
+                  {t("ticket.commentHint")}
                 </p>
                 <Button
                   onClick={handleComment}
@@ -346,7 +349,7 @@ export default function TicketDetail() {
                   ) : (
                     <MessageSquare className="size-4" />
                   )}
-                  Post comment
+                  {t("ticket.postComment")}
                 </Button>
               </div>
             </div>
@@ -356,15 +359,13 @@ export default function TicketDetail() {
         <div className="flex flex-col gap-6">
           <Card className="rounded-2xl border-border/70 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Triage</CardTitle>
-              <CardDescription>
-                Status and priority decide what the queue shows first
-              </CardDescription>
+              <CardTitle className="text-base">{t("ticket.triage")}</CardTitle>
+              <CardDescription>{t("ticket.triageHint")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Status
+                  {t("catalog.columnStatus")}
                 </p>
                 <Select
                   value={ticket.status}
@@ -378,19 +379,19 @@ export default function TicketDetail() {
                   <SelectContent>
                     {STATUS_ORDER.map((value) => (
                       <SelectItem key={value} value={value}>
-                        {STATUS_META[value].label}
+                        {t(STATUS_LABEL_KEY[value])}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {STATUS_META[ticket.status].hint}
+                  {t(`status.${ticket.status}.hint`)}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Priority
+                  {t("catalog.columnPriority")}
                 </p>
                 <Select
                   value={ticket.priority}
@@ -404,19 +405,19 @@ export default function TicketDetail() {
                   <SelectContent>
                     {PRIORITY_ORDER.map((value) => (
                       <SelectItem key={value} value={value}>
-                        {PRIORITY_META[value].label}
+                        {t(PRIORITY_LABEL_KEY[value])}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {PRIORITY_META[ticket.priority].hint}
+                  {t(`priority.${ticket.priority}.hint`)}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Owner
+                  {t("newTicket.ownerLabel")}
                 </p>
                 <AssigneeSelect
                   members={members}
@@ -426,8 +427,8 @@ export default function TicketDetail() {
                 />
                 <p className="text-xs text-muted-foreground">
                   {ticket.assigneeId
-                    ? "This teammate owns the next move."
-                    : "Nobody owns this ticket yet."}
+                    ? t("ticket.ownerOwned")
+                    : t("ticket.ownerNone")}
                 </p>
               </div>
 
@@ -441,7 +442,7 @@ export default function TicketDetail() {
                     onClick={() => handleStatusChange("resolved")}
                   >
                     <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-                    Mark as resolved
+                    {t("ticket.markResolved")}
                   </Button>
                 ) : (
                   <Button
@@ -450,7 +451,7 @@ export default function TicketDetail() {
                     onClick={() => handleStatusChange("open")}
                   >
                     <RotateCcw className="size-4" />
-                    Reopen as open
+                    {t("ticket.reopen")}
                   </Button>
                 )}
                 <Button
@@ -459,7 +460,7 @@ export default function TicketDetail() {
                   onClick={handleAddTodo}
                 >
                   <ListPlus className="size-4" />
-                  Add to my todos
+                  {t("ticket.addTodo")}
                 </Button>
               </div>
             </CardContent>
@@ -467,10 +468,8 @@ export default function TicketDetail() {
 
           <Card className="rounded-2xl border-border/70 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Details</CardTitle>
-              <CardDescription>
-                Who logged it, and what happened since
-              </CardDescription>
+              <CardTitle className="text-base">{t("ticket.details")}</CardTitle>
+              <CardDescription>{t("ticket.detailsHint")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-[13px]">
               <div>
@@ -478,43 +477,46 @@ export default function TicketDetail() {
                 {ticket.customerEmail ? (
                   <a
                     href={`mailto:${ticket.customerEmail}`}
+                    dir="ltr"
                     className="mt-1 flex items-center gap-1.5 text-primary hover:underline"
                   >
                     <Mail className="size-3.5" />
                     {ticket.customerEmail}
                   </a>
                 ) : (
-                  <p className="mt-1 text-muted-foreground">No email on file</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {t("ticket.noEmail")}
+                  </p>
                 )}
               </div>
               <Separator />
               <dl className="space-y-2.5 text-muted-foreground">
                 <div className="flex items-center justify-between gap-3">
-                  <dt>Opened</dt>
-                  <dd className="text-right text-foreground">
+                  <dt>{t("ticket.opened")}</dt>
+                  <dd className="text-end text-foreground">
                     {formatDateTime(ticket.createdAt)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt>Last activity</dt>
+                  <dt>{t("ticket.lastActivity")}</dt>
                   <dd className="text-foreground">
                     {timeAgo(ticket.lastActivityAt)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt>First response</dt>
+                  <dt>{t("ticket.firstResponse")}</dt>
                   <dd className="font-mono text-[12px] text-foreground">
-                    {firstResponse ?? "pending"}
+                    {firstResponse ?? t("ticket.firstResponsePending")}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt>Comments</dt>
+                  <dt>{t("ticket.comments")}</dt>
                   <dd className="font-mono text-[12px] text-foreground">
                     {discussion.length}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt>Files</dt>
+                  <dt>{t("ticket.files")}</dt>
                   <dd className="font-mono text-[12px] text-foreground">
                     {attachments.length}
                   </dd>

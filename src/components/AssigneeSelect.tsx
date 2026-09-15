@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useI18n } from "@/hooks/use-i18n";
 import { NO_OWNER, type TeamMember } from "@/hooks/use-team-members";
 
 export function AssigneeSelect({
@@ -21,6 +22,8 @@ export function AssigneeSelect({
   size?: "sm" | "default";
   className?: string;
 }) {
+  const { t } = useI18n();
+
   return (
     <Select
       value={value ?? NO_OWNER}
@@ -29,10 +32,10 @@ export function AssigneeSelect({
       }
     >
       <SelectTrigger size={size} className={className}>
-        <SelectValue placeholder="Unassigned" />
+        <SelectValue placeholder={t("common.unassigned")} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NO_OWNER}>Unassigned</SelectItem>
+        <SelectItem value={NO_OWNER}>{t("common.unassigned")}</SelectItem>
         {members.map((member) => (
           <SelectItem key={member._id} value={member._id}>
             {member.name}

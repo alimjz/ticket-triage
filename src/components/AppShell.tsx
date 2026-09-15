@@ -1,5 +1,7 @@
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { useI18n } from "@/hooks/use-i18n";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -12,19 +14,27 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
+import type { MessageKey } from "@/lib/i18n";
 
 const NAV: {
   to: string;
-  label: string;
+  labelKey: MessageKey;
   icon: LucideIcon;
   end?: boolean;
 }[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/catalog", label: "Catalog", icon: Layers },
-  { to: "/admin", label: "Admin", icon: ShieldCheck },
+  {
+    to: "/dashboard",
+    labelKey: "nav.dashboard",
+    icon: LayoutDashboard,
+    end: true,
+  },
+  { to: "/catalog", labelKey: "nav.catalog", icon: Layers },
+  { to: "/admin", labelKey: "nav.admin", icon: ShieldCheck },
 ];
 
 function Brand() {
+  const { t } = useI18n();
+
   return (
     <div className="flex items-center gap-2.5">
       <span className="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-card text-primary">
@@ -32,10 +42,10 @@ function Brand() {
       </span>
       <span className="leading-tight">
         <span className="block text-[15px] font-semibold tracking-tight">
-          Intake
+          {t("brand.name")}
         </span>
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Internal ticketing
+          {t("brand.tagline")}
         </span>
       </span>
     </div>
@@ -62,10 +72,11 @@ export function AppShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const name = user?.name?.trim() || user?.email || "Teammate";
+  const name = user?.name?.trim() || user?.email || t("role.member");
   const initials = name
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -80,7 +91,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-4 py-5 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-e border-sidebar-border bg-sidebar px-4 py-5 lg:flex">
         <NavLink to="/dashboard" className="px-1 py-1">
           <Brand />
         </NavLink>
@@ -88,7 +99,7 @@ export function AppShell({
         <Button asChild className="w-full justify-start gap-2">
           <NavLink to="/new">
             <Plus className="size-4" />
-            New ticket
+            {t("common.newTicket")}
           </NavLink>
         </Button>
 
@@ -101,16 +112,17 @@ export function AppShell({
               className={navClass}
             >
               <item.icon className="size-4" />
-              {item.label}
+              {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
 
         <div className="mt-auto space-y-3">
-          <p className="px-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
-            {user?.role === "admin" ? "Workspace owner" : "Workspace member"}
-          </p>
+          <LanguageToggle className="w-full justify-center" />
           <div className="rounded-xl border border-sidebar-border bg-card/60 p-3">
+            <p className="px-1 pb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
+              {user?.role === "admin" ? t("role.owner") : t("role.member")}
+            </p>
             <div className="flex items-center gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 font-mono text-[11px] font-medium text-primary">
                 {initials || "T"}
@@ -120,7 +132,7 @@ export function AppShell({
                   {name}
                 </span>
                 <span className="block truncate text-[11px] text-muted-foreground">
-                  {user?.email ?? "Signed in"}
+                  {user?.email ?? t("role.member")}
                 </span>
               </span>
             </div>
@@ -132,7 +144,7 @@ export function AppShell({
               className="mt-2 w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
             >
               <LogOut className="size-4" />
-              Sign out
+              {t("role.signOut")}
             </Button>
           </div>
         </div>
@@ -146,10 +158,11 @@ export function AppShell({
                 <Brand />
               </NavLink>
               <div className="flex items-center gap-1">
+                <LanguageToggle />
                 <Button asChild size="sm" className="gap-1.5">
                   <NavLink to="/new">
                     <Plus className="size-4" />
-                    New
+                    {t("common.new")}
                   </NavLink>
                 </Button>
                 <Button
@@ -157,7 +170,7 @@ export function AppShell({
                   variant="ghost"
                   size="icon"
                   onClick={handleSignOut}
-                  aria-label="Sign out"
+                  aria-label={t("role.signOut")}
                 >
                   <LogOut className="size-4" />
                 </Button>
@@ -196,7 +209,7 @@ export function AppShell({
                   }
                 >
                   <item.icon className="size-3.5" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </NavLink>
               ))}
             </nav>

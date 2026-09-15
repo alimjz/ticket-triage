@@ -1,13 +1,14 @@
 /* DO NOT CHANGE */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Vazirmatn:wght@400;500;600;700&display=swap");
 @custom-variant dark (&:is(.dark *));
 
 /* DO NOT CHANGE */
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Inter covers Latin copy; Vazirmatn takes over for Persian glyphs. */
+  --font-sans: "Inter", "Vazirmatn", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
   --radius-sm: calc(var(--radius) - 4px);
@@ -170,4 +171,37 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
+}
+
+/* Persian typography. Arabic-script text needs open tracking and a taller
+   leading than Latin copy, and uppercase does nothing for it. These rules sit
+   outside every layer so they win over Tailwind's utility layer. */
+[dir="rtl"] body {
+  letter-spacing: 0;
+  line-height: 1.85;
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4 {
+  letter-spacing: -0.008em;
+  line-height: 1.5;
+}
+
+[dir="rtl"] .font-mono {
+  letter-spacing: 0;
+}
+
+[dir="rtl"] .mono-label {
+  letter-spacing: 0.02em;
+}
+
+/* Direction-sensitive glyphs: arrows and exit icons point the other way. */
+[dir="rtl"] svg.lucide-arrow-left,
+[dir="rtl"] svg.lucide-arrow-right,
+[dir="rtl"] svg.lucide-arrow-up-right,
+[dir="rtl"] svg.lucide-log-out,
+[dir="rtl"] svg.lucide-send {
+  transform: scaleX(-1);
 }

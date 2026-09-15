@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useI18n } from "@/hooks/use-i18n";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { errorMessage } from "@/lib/errors";
 import { formatBytes } from "@/lib/tickets";
@@ -27,6 +28,7 @@ const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 export default function NewTicket() {
+  const { t } = useI18n();
   const createTicket = useMutation(api.tickets.createTicket);
   const generateUploadUrl = useMutation(api.tickets.generateUploadUrl);
   const navigate = useNavigate();
@@ -49,9 +51,7 @@ export default function NewTicket() {
 
     const oversized = picked.filter((file) => file.size > MAX_FILE_BYTES);
     if (oversized.length > 0) {
-      toast.error(
-        `${oversized.map((file) => file.name).join(", ")} exceeds the 10 MB limit.`,
-      );
+      toast.error(t("newTicket.tooLarge"));
     }
 
     setFiles((current) => {
@@ -60,7 +60,7 @@ export default function NewTicket() {
         .filter((file) => file.size <= MAX_FILE_BYTES)
         .slice(0, room);
       if (accepted.length < picked.length - oversized.length) {
-        toast.error(`You can attach up to ${MAX_FILES} files.`);
+        toast.error(t("newTicket.tooMany", { max: MAX_FILES }));
       }
       return [...current, ...accepted];
     });
@@ -71,11 +71,11 @@ export default function NewTicket() {
     setError(null);
 
     if (subject.trim().length < 4) {
-      setError("Give the ticket a title of at least 4 characters.");
+      setError(t("newTicket.needTitle"));
       return;
     }
     if (body.trim().length < 10) {
-      setError("Describe the request in at least 10 characters.");
+      setError(t("newTicket.needDetails"));
       return;
     }
 
@@ -91,8 +91,11 @@ export default function NewTicket() {
         const file = files[index];
         setProgress(
           files.length === 1
-            ? `Uploading ${file.name}...`
-            : `Uploading file ${index + 1} of ${files.length}...`,
+            ? t("newTicket.uploadingOne", { name: file.name })
+            : t("newTicket.uploadingMany", {
+                current: index + 1,
+                total: files.length,
+              }),
         );
         const postUrl = await generateUploadUrl({});
         const response = await fetch(postUrl, {
@@ -101,7 +104,7 @@ export default function NewTicket() {
           body: file,
         });
         if (!response.ok) {
-          throw new Error(`Could not upload ${file.name}.`);
+          throw new Error(t("errors.uploadFailed", { name: file.name }));
         }
         const { storageId } = (await response.json()) as { storageId: string };
         uploads.push({
@@ -112,7 +115,7 @@ export default function NewTicket() {
         });
       }
 
-      setProgress("Creating ticket...");
+      setProgress(t("newTicket.creating"));
       const result = await createTicket({
         subject,
         body,
@@ -120,10 +123,10 @@ export default function NewTicket() {
         attachments: uploads.length > 0 ? uploads : undefined,
       });
 
-      toast.success(`Ticket ${result.reference} created`);
+      toast.success(t("toasts.ticketCreated", { reference: result.reference }));
       navigate(`/catalog/${result.ticketId}`);
     } catch (caught) {
-      setError(errorMessage(caught, "Could not create that ticket."));
+      setError(errorMessage(caught, t("errors.createTicket")));
     } finally {
       setProgress(null);
     }
@@ -131,8 +134,8 @@ export default function NewTicket() {
 
   return (
     <AppShell
-      title="New ticket"
-      description="Log a request with everything someone needs to act on it."
+      title={t("newTicket.title")}
+      description={t("newTicket.description")}
       actions={
         <Button
           type="button"
@@ -140,53 +143,53 @@ export default function NewTicket() {
           className="bg-card"
           onClick={() => navigate("/catalog")}
         >
-          Cancel
+          {t("common.cancel")}
         </Button>
       }
     >
       <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Ticket details</CardTitle>
-            <CardDescription>
-              One ticket per problem keeps the catalog searchable.
-            </CardDescription>
+            <CardTitle className="text-base">
+              {t("newTicket.cardTitle")}
+            </CardTitle>
+            <CardDescription>{t("newTicket.cardHint")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
               <div className="space-y-2">
-                <Label htmlFor="subject">Title</Label>
+                <Label htmlFor="subject">{t("newTicket.titleLabel")}</Label>
                 <Input
                   id="subject"
                   value={subject}
                   onChange={(event) => setSubject(event.target.value)}
-                  placeholder="Short, specific summary of the request"
+                  placeholder={t("newTicket.titlePlaceholder")}
                   className="bg-background"
                   disabled={isSubmitting}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="body">Details</Label>
+                <Label htmlFor="body">{t("newTicket.detailsLabel")}</Label>
                 <Textarea
                   id="body"
                   rows={8}
                   value={body}
                   onChange={(event) => setBody(event.target.value)}
-                  placeholder="What you expected, what happened instead, and anything you already tried."
+                  placeholder={t("newTicket.detailsPlaceholder")}
                   className="min-h-44 bg-background"
                   disabled={isSubmitting}
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Context now saves a round trip later.</span>
+                  <span>{t("newTicket.detailsHint")}</span>
                   <span className="font-mono tabular-nums">
-                    {body.trim().length} chars
+                    {t("newTicket.chars", { count: body.trim().length })}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Owner</Label>
+                <Label>{t("newTicket.ownerLabel")}</Label>
                 <AssigneeSelect
                   members={members}
                   value={assigneeId}
@@ -194,22 +197,24 @@ export default function NewTicket() {
                   className="w-full bg-background"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Optional. Leave it unassigned and anyone can pick it up from
-                  the catalog.
+                  {t("newTicket.ownerHint")}
                 </p>
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="attachments">Attachments</Label>
+                <Label htmlFor="attachments">
+                  {t("newTicket.attachmentsLabel")}
+                </Label>
                 <label
                   htmlFor="attachments"
                   className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
                 >
                   <Paperclip className="size-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Choose files</span>
+                  <span className="text-sm font-medium">
+                    {t("newTicket.chooseFiles")}
+                  </span>
                   <span className="text-xs text-muted-foreground">
-                    Screenshots, logs, or documents — up to {MAX_FILES} files, 10
-                    MB each
+                    {t("newTicket.filesHint")}
                   </span>
                 </label>
                 <input
@@ -240,11 +245,15 @@ export default function NewTicket() {
                           variant="ghost"
                           size="icon"
                           className="size-7 text-muted-foreground hover:text-foreground"
-                          aria-label={`Remove ${file.name}`}
+                          aria-label={t("newTicket.removeFile", {
+                            name: file.name,
+                          })}
                           disabled={isSubmitting}
                           onClick={() =>
                             setFiles((current) =>
-                              current.filter((_, position) => position !== index),
+                              current.filter(
+                                (_, position) => position !== index,
+                              ),
                             )
                           }
                         >
@@ -264,9 +273,7 @@ export default function NewTicket() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-5">
                 <p className="text-xs text-muted-foreground">
-                  New tickets land in the catalog as{" "}
-                  <span className="text-foreground">Open</span> with normal
-                  priority.
+                  {t("newTicket.defaults")}
                 </p>
                 <Button type="submit" className="gap-2" disabled={isSubmitting}>
                   {isSubmitting ? (
@@ -274,7 +281,7 @@ export default function NewTicket() {
                   ) : (
                     <Send className="size-4" />
                   )}
-                  {progress ?? "Create ticket"}
+                  {progress ?? t("newTicket.create")}
                 </Button>
               </div>
             </form>
@@ -285,23 +292,19 @@ export default function NewTicket() {
           <Card className="rounded-2xl border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                What makes a good ticket
+                {t("newTicket.goodTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 text-[13px] leading-6 text-muted-foreground">
-                <li className="flex gap-2.5">
-                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                  A title someone can scan in a list of fifty.
-                </li>
-                <li className="flex gap-2.5">
-                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                  Reproduction steps, links, or the exact error you saw.
-                </li>
-                <li className="flex gap-2.5">
-                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                  The deadline, if there is one, so priority is obvious.
-                </li>
+                {[t("newTicket.goodOne"), t("newTicket.goodTwo"), t("newTicket.goodThree")].map(
+                  (item) => (
+                    <li key={item} className="flex gap-2.5">
+                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
+                      {item}
+                    </li>
+                  ),
+                )}
               </ul>
             </CardContent>
           </Card>
@@ -309,14 +312,12 @@ export default function NewTicket() {
           <Card className="rounded-2xl border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                After you submit
+                {t("newTicket.afterTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-[13px] leading-6 text-muted-foreground">
-                You land on the ticket&apos;s own page. Anyone on the team can
-                comment there and attach context, and the ticket also appears
-                under your dashboard so you can track it without searching.
+                {t("newTicket.afterBody")}
               </p>
             </CardContent>
           </Card>

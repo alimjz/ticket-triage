@@ -30,16 +30,14 @@ import {
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
+import { useI18n } from "@/hooks/use-i18n";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { errorMessage } from "@/lib/errors";
 import {
-  PRIORITY_META,
+  PRIORITY_LABEL_KEY,
   PRIORITY_ORDER,
-  STATUS_META,
+  STATUS_LABEL_KEY,
   STATUS_ORDER,
-  formatDayLabel,
-  formatMinutes,
-  timeAgo,
 } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
@@ -117,6 +115,7 @@ function StatCard({
 }
 
 export default function Admin() {
+  const { t, timeAgo, formatDayLabel, formatMinutes } = useI18n();
   const stats = useQuery(api.tickets.stats);
   const tickets = useQuery(api.tickets.listTickets, {});
   const updateTicket = useMutation(api.tickets.updateTicket);
@@ -131,11 +130,11 @@ export default function Admin() {
       const result = await seedSampleTickets({});
       toast(
         result.inserted > 0
-          ? `Loaded ${result.inserted} sample tickets`
-          : "The catalog already has tickets",
+          ? t("toasts.sampleLoaded", { count: result.inserted })
+          : t("toasts.sampleExists"),
       );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not load sample tickets."));
+      toast.error(errorMessage(caught, t("errors.loadSample")));
     } finally {
       setIsSeeding(false);
     }
@@ -144,9 +143,11 @@ export default function Admin() {
   const handleStatus = async (ticketId: Id<"tickets">, status: TicketStatus) => {
     try {
       await updateTicket({ ticketId, status });
-      toast.success(`Status set to ${STATUS_META[status].label.toLowerCase()}`);
+      toast.success(
+        t("toasts.statusSet", { status: t(STATUS_LABEL_KEY[status]) }),
+      );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not update the status."));
+      toast.error(errorMessage(caught, t("errors.updateStatus")));
     }
   };
 
@@ -157,10 +158,10 @@ export default function Admin() {
     try {
       await updateTicket({ ticketId, priority });
       toast.success(
-        `Priority set to ${PRIORITY_META[priority].label.toLowerCase()}`,
+        t("toasts.prioritySet", { priority: t(PRIORITY_LABEL_KEY[priority]) }),
       );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not update the priority."));
+      toast.error(errorMessage(caught, t("errors.updatePriority")));
     }
   };
 
@@ -170,27 +171,26 @@ export default function Admin() {
   ) => {
     try {
       await updateTicket({ ticketId, assigneeId });
-      toast.success(assigneeId ? "Owner updated" : "Owner cleared");
+      toast.success(
+        assigneeId ? t("toasts.ownerUpdated") : t("toasts.ownerCleared"),
+      );
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not change the owner."));
+      toast.error(errorMessage(caught, t("errors.updateOwner")));
     }
   };
 
   const handleDelete = async (ticketId: Id<"tickets">, reference: string) => {
     try {
       await deleteTicket({ ticketId });
-      toast.success(`Deleted ${reference}`);
+      toast.success(t("toasts.deleted", { reference }));
     } catch (caught) {
-      toast.error(errorMessage(caught, "Could not delete that ticket."));
+      toast.error(errorMessage(caught, t("errors.deleteTicket")));
     }
   };
 
   if (stats === undefined) {
     return (
-      <AppShell
-        title="Admin"
-        description="Team-wide numbers and every ticket, editable in place."
-      >
+      <AppShell title={t("admin.title")} description={t("admin.description")}>
         <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
@@ -200,17 +200,17 @@ export default function Admin() {
 
   return (
     <AppShell
-      title="Admin"
-      description="Team-wide numbers and every ticket, editable in place."
+      title={t("admin.title")}
+      description={t("admin.description")}
       actions={
         <>
           <Button asChild variant="outline" className="bg-card">
-            <Link to="/catalog">Catalog</Link>
+            <Link to="/catalog">{t("nav.catalog")}</Link>
           </Button>
           <Button asChild className="gap-2">
             <Link to="/new">
               <Plus className="size-4" />
-              New ticket
+              {t("common.newTicket")}
             </Link>
           </Button>
         </>
@@ -225,12 +225,10 @@ export default function Admin() {
                   <Sparkles className="size-5" />
                 </span>
                 <h2 className="mt-4 text-lg font-semibold tracking-tight">
-                  The workspace is empty
+                  {t("admin.emptyTitle")}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Load ten realistic tickets to see the stats, the queue, and the
-                  comment threads working. Sample data is only added when the
-                  catalog has no tickets.
+                  {t("admin.emptyBody")}
                 </p>
               </div>
               <Button
@@ -243,7 +241,7 @@ export default function Admin() {
                 ) : (
                   <Sparkles className="size-4" />
                 )}
-                Load sample tickets
+                {t("admin.loadSample")}
               </Button>
             </CardContent>
           </Card>
@@ -251,30 +249,30 @@ export default function Admin() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            label="Open"
+            label={t(STATUS_LABEL_KEY.open)}
             value={stats.open}
-            hint="Nobody has replied yet"
+            hint={t("admin.openHint")}
             icon={Inbox}
             tone="primary"
           />
           <StatCard
-            label="Waiting"
+            label={t(STATUS_LABEL_KEY.pending)}
             value={stats.pending}
-            hint="Replied, waiting on the requester"
+            hint={t("admin.waitingHint")}
             icon={Clock}
             tone="amber"
           />
           <StatCard
-            label="Needs attention"
+            label={t("admin.attention")}
             value={stats.needingAttention}
-            hint="High or urgent, still unresolved"
+            hint={t("admin.attentionHint")}
             icon={AlertTriangle}
             tone="danger"
           />
           <StatCard
-            label="Resolved this week"
+            label={t("admin.resolvedWeek")}
             value={stats.resolvedThisWeek}
-            hint="Closed out in the last 7 days"
+            hint={t("admin.resolvedWeekHint")}
             icon={CheckCircle2}
             tone="emerald"
           />
@@ -283,13 +281,11 @@ export default function Admin() {
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <Card className="rounded-2xl border-border/70 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Ticket volume</CardTitle>
-              <CardDescription>
-                Tickets logged per day over the last two weeks
-              </CardDescription>
+              <CardTitle className="text-base">{t("admin.volume")}</CardTitle>
+              <CardDescription>{t("admin.volumeHint")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[240px] w-full">
+              <div className="h-[240px] w-full" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={stats.activity}
@@ -301,7 +297,7 @@ export default function Admin() {
                     />
                     <XAxis
                       dataKey="day"
-                      tickFormatter={formatDayLabel}
+                      tickFormatter={(value) => formatDayLabel(String(value))}
                       tickLine={false}
                       axisLine={false}
                       interval={1}
@@ -317,13 +313,17 @@ export default function Admin() {
                     <Tooltip
                       cursor={{ fill: "rgba(255,255,255,0.05)" }}
                       labelFormatter={(label) => formatDayLabel(String(label))}
-                      formatter={(value) => [`${value} tickets`, "Logged"]}
+                      formatter={(value) => [
+                        t("admin.chartTickets", { count: Number(value) }),
+                        t("admin.chartLogged"),
+                      ]}
                       contentStyle={{
                         background: "oklch(0.216 0.007 265)",
                         border: "1px solid rgba(255,255,255,0.12)",
                         borderRadius: 12,
                         fontSize: 12,
                         color: "#e9ebf2",
+                        direction: "rtl",
                       }}
                     />
                     <Bar
@@ -340,20 +340,20 @@ export default function Admin() {
 
           <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
             <CardHeader className="gap-0 border-b border-border/70 py-5">
-              <CardTitle className="text-base">Queue</CardTitle>
+              <CardTitle className="text-base">{t("admin.queue")}</CardTitle>
               <CardDescription>
                 {stats.queue.length > 0
-                  ? "Unresolved tickets, most recent activity first"
-                  : "Nothing unresolved right now"}
+                  ? t("admin.queueHint")
+                  : t("admin.queueNone")}
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 py-0">
               {stats.queue.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
                   <CheckCircle2 className="size-6 text-emerald-600 dark:text-emerald-400" />
-                  <p className="text-sm font-medium">Queue is clear</p>
+                  <p className="text-sm font-medium">{t("admin.queueClear")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Every ticket is resolved or closed.
+                    {t("admin.queueClearHint")}
                   </p>
                 </div>
               ) : (
@@ -369,31 +369,31 @@ export default function Admin() {
 
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Response health</CardTitle>
-            <CardDescription>
-              Derived from every ticket on record
-            </CardDescription>
+            <CardTitle className="text-base">{t("admin.health")}</CardTitle>
+            <CardDescription>{t("admin.healthHint")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
                 icon: TimerReset,
-                label: "Median first response",
+                label: t("admin.medianResponse"),
                 value: formatMinutes(stats.avgFirstResponseMinutes),
               },
               {
                 icon: Clock,
-                label: "Oldest unreplied ticket",
-                value: stats.oldestOpenAt ? timeAgo(stats.oldestOpenAt) : "None",
+                label: t("admin.oldestWaiting"),
+                value: stats.oldestOpenAt
+                  ? timeAgo(stats.oldestOpenAt)
+                  : t("admin.none"),
               },
               {
                 icon: Inbox,
-                label: "Tickets on record",
+                label: t("admin.onRecord"),
                 value: `${stats.total}`,
               },
               {
                 icon: UserRound,
-                label: "Unassigned",
+                label: t("admin.unassignedStat"),
                 value: `${stats.unassigned}`,
               },
             ].map((row) => (
@@ -415,11 +415,8 @@ export default function Admin() {
 
         <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
           <CardHeader className="gap-0 border-b border-border/70 py-5">
-            <CardTitle className="text-base">All tickets</CardTitle>
-            <CardDescription>
-              Change status or priority inline, or delete what does not belong
-              here
-            </CardDescription>
+            <CardTitle className="text-base">{t("admin.allTickets")}</CardTitle>
+            <CardDescription>{t("admin.allTicketsHint")}</CardDescription>
           </CardHeader>
 
           {tickets === undefined ? (
@@ -428,7 +425,7 @@ export default function Admin() {
             </div>
           ) : tickets.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-              No tickets to manage yet.
+              {t("admin.noneToManage")}
             </p>
           ) : (
             <CardContent className="divide-y divide-border/70 px-0 py-0">
@@ -458,7 +455,7 @@ export default function Admin() {
                       >
                         {ticket.assigneeName
                           ? `@${ticket.assigneeName}`
-                          : "unassigned"}
+                          : t("common.unassigned")}
                       </span>
                       <span className="px-1.5 font-sans text-border">/</span>
                       <span className="font-sans">
@@ -490,7 +487,7 @@ export default function Admin() {
                       <SelectContent>
                         {STATUS_ORDER.map((value) => (
                           <SelectItem key={value} value={value}>
-                            {STATUS_META[value].label}
+                            {t(STATUS_LABEL_KEY[value])}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -508,7 +505,7 @@ export default function Admin() {
                       <SelectContent>
                         {PRIORITY_ORDER.map((value) => (
                           <SelectItem key={value} value={value}>
-                            {PRIORITY_META[value].label}
+                            {t(PRIORITY_LABEL_KEY[value])}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -519,7 +516,9 @@ export default function Admin() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Delete ${ticket.reference}`}
+                          aria-label={t("admin.deleteAria", {
+                            reference: ticket.reference,
+                          })}
                           className="size-8 text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="size-3.5" />
@@ -528,22 +527,27 @@ export default function Admin() {
                       <AlertDialogContent className="border-border/70">
                         <AlertDialogHeader>
                           <AlertDialogTitle>
-                            Delete {ticket.reference}?
+                            {t("admin.deleteTitle", {
+                              reference: ticket.reference,
+                            })}
                           </AlertDialogTitle>
                           <AlertDialogDescription>
-                            “{ticket.subject}” and its comments and attachments
-                            will be removed for everyone. This cannot be undone.
+                            {t("admin.deleteBody", {
+                              subject: ticket.subject,
+                            })}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Keep it</AlertDialogCancel>
+                          <AlertDialogCancel>
+                            {t("admin.keepIt")}
+                          </AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() =>
                               handleDelete(ticket._id, ticket.reference)
                             }
                             className="bg-destructive text-white hover:bg-destructive/90"
                           >
-                            Delete ticket
+                            {t("admin.delete")}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
