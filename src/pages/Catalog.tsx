@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/AppShell";
-import { Badge } from "@/components/ui/badge";
+import { PriorityBadge, StatusBadge } from "@/components/TicketRow";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/select";
 import { api } from "@/convex/_generated/api";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
+import { errorMessage } from "@/lib/errors";
 import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, timeAgo } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
-import { useQuery } from "convex/react";
-import { Inbox, Loader2, Search } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { Loader2, Plus, Search, Sparkles, Layers } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 
 type StatusFilter = "all" | TicketStatus;
 
@@ -29,11 +31,14 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
-export default function Tickets() {
+export default function Catalog() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [priority, setPriority] = useState<"all" | TicketPriority>("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const seedSampleTickets = useMutation(api.tickets.seedSampleTickets);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 200);
@@ -58,13 +63,32 @@ export default function Tickets() {
   const isFiltered =
     status !== "all" || priority !== "all" || debouncedSearch.trim().length > 0;
 
+  const handleSeed = async () => {
+    setIsSeeding(true);
+    try {
+      const result = await seedSampleTickets({});
+      toast(
+        result.inserted > 0
+          ? `Loaded ${result.inserted} sample tickets`
+          : "The catalog already has tickets",
+      );
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Could not load sample tickets."));
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   return (
     <AppShell
-      title="Tickets"
-      description="Triage, prioritise, and reply to every customer request."
+      title="Catalog"
+      description="Every ticket the team has logged, searchable in one place."
       actions={
-        <Button asChild variant="outline" className="gap-2 bg-card">
-          <Link to="/submit">Customer form</Link>
+        <Button asChild className="gap-2">
+          <Link to="/new">
+            <Plus className="size-4" />
+            New ticket
+          </Link>
         </Button>
       }
     >
@@ -79,7 +103,7 @@ export default function Tickets() {
                 className={cn(
                   "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
                   status === filter.value
-                    ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                    ? "border-primary/30 bg-primary/12 text-primary"
                     : "border-border/70 bg-card text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -87,9 +111,9 @@ export default function Tickets() {
                 {counts[filter.value] !== undefined ? (
                   <span
                     className={cn(
-                      "rounded-full px-1.5 text-[11px] tabular-nums",
+                      "rounded-full px-1.5 font-mono text-[10px] tabular-nums",
                       status === filter.value
-                        ? "bg-primary-foreground/20"
+                        ? "bg-primary/15 text-primary"
                         : "bg-muted",
                     )}
                   >
@@ -106,7 +130,7 @@ export default function Tickets() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search subject, customer, reference"
+                placeholder="Search title, reference, or requester"
                 className="h-9 w-full bg-card pl-9 sm:w-72"
               />
             </div>
@@ -132,12 +156,12 @@ export default function Tickets() {
         </div>
 
         <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 py-0 shadow-sm">
-          <div className="hidden items-center gap-4 border-b border-border/70 bg-muted/40 px-5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground md:flex">
+          <div className="hidden items-center gap-4 border-b border-border/70 bg-muted/20 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground md:flex">
             <span className="flex-1">Ticket</span>
-            <span className="w-48">Customer</span>
+            <span className="w-44">Requester</span>
             <span className="w-24 text-right">Priority</span>
             <span className="w-24 text-right">Status</span>
-            <span className="w-24 text-right">Updated</span>
+            <span className="w-20 text-right">Updated</span>
           </div>
 
           {tickets === undefined ? (
@@ -146,16 +170,18 @@ export default function Tickets() {
             </div>
           ) : tickets.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <Inbox className="size-5" />
+              <span className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-muted/40 text-muted-foreground">
+                <Layers className="size-5" />
               </span>
               <p className="mt-1 text-sm font-medium">
-                {isFiltered ? "No tickets match these filters" : "No tickets yet"}
+                {isFiltered
+                  ? "No tickets match these filters"
+                  : "Nothing in the catalog yet"}
               </p>
               <p className="max-w-sm text-xs leading-5 text-muted-foreground">
                 {isFiltered
-                  ? "Try clearing the search or switching back to all statuses."
-                  : "Share the customer form and incoming requests will show up here."}
+                  ? "Try a different status, priority, or search term."
+                  : "Log the first ticket, or load a sample queue to see how triage works."}
               </p>
               {isFiltered ? (
                 <Button
@@ -171,62 +197,75 @@ export default function Tickets() {
                   Clear filters
                 </Button>
               ) : (
-                <Button asChild size="sm" className="mt-3">
-                  <Link to="/submit">Open customer form</Link>
-                </Button>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  <Button asChild size="sm" className="gap-1.5">
+                    <Link to="/new">
+                      <Plus className="size-3.5" />
+                      New ticket
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 bg-card"
+                    onClick={handleSeed}
+                    disabled={isSeeding}
+                  >
+                    {isSeeding ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-3.5" />
+                    )}
+                    Load sample tickets
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
             <div className="divide-y divide-border/70">
-              {tickets.map((ticket) => {
-                const statusMeta = STATUS_META[ticket.status];
-                const priorityMeta = PRIORITY_META[ticket.priority];
-                return (
-                  <Link
-                    key={ticket._id}
-                    to={`/dashboard/tickets/${ticket._id}`}
-                    className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:flex-row md:items-center md:gap-4"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {ticket.subject}
-                      </p>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        <span className="font-mono">{ticket.reference}</span>
-                        {" · "}
-                        {ticket.lastMessagePreview}
-                      </p>
-                    </div>
-                    <div className="min-w-0 md:w-48">
-                      <p className="truncate text-[13px]">{ticket.customerName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {ticket.customerEmail}
-                      </p>
-                    </div>
-                    <div className="md:w-24 md:text-right">
-                      <Badge className={priorityMeta.badge}>
-                        {priorityMeta.label}
-                      </Badge>
-                    </div>
-                    <div className="md:w-24 md:text-right">
-                      <Badge className={statusMeta.badge}>
-                        {statusMeta.label}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground md:w-24 md:text-right">
-                      {timeAgo(ticket.lastActivityAt)}
-                    </div>
-                  </Link>
-                );
-              })}
+              {tickets.map((ticket) => (
+                <Link
+                  key={ticket._id}
+                  to={`/catalog/${ticket._id}`}
+                  className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-foreground/[0.03] md:flex-row md:items-center md:gap-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {ticket.subject}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      <span className="font-mono text-[11px]">
+                        {ticket.reference}
+                      </span>
+                      <span className="px-1.5 text-border">/</span>
+                      {ticket.lastMessagePreview}
+                    </p>
+                  </div>
+                  <div className="min-w-0 md:w-44">
+                    <p className="truncate text-[13px]">{ticket.customerName}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {ticket.customerEmail || "No email on file"}
+                    </p>
+                  </div>
+                  <div className="md:w-24 md:text-right">
+                    <PriorityBadge priority={ticket.priority} />
+                  </div>
+                  <div className="md:w-24 md:text-right">
+                    <StatusBadge status={ticket.status} />
+                  </div>
+                  <div className="font-mono text-[11px] tabular-nums text-muted-foreground md:w-20 md:text-right">
+                    {timeAgo(ticket.lastActivityAt)}
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </Card>
 
         {tickets !== undefined && tickets.length > 0 ? (
-          <p className="px-1 text-xs text-muted-foreground">
-            Showing {tickets.length} ticket{tickets.length === 1 ? "" : "s"}
-            {isFiltered ? " matching your filters" : ""}.
+          <p className="px-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            {tickets.length} ticket{tickets.length === 1 ? "" : "s"}
+            {isFiltered ? " matching filters" : " on record"}
           </p>
         ) : null}
       </div>

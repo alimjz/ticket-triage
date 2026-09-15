@@ -16,10 +16,10 @@ export const roleValidator = v.union(
 );
 export type Role = Infer<typeof roleValidator>;
 
-// support ticket vocabulary
+// ticket vocabulary
 export const TICKET_STATUSES = {
-  OPEN: "open", // new, awaiting first agent reply
-  PENDING: "pending", // agent replied, waiting on the customer
+  OPEN: "open", // logged, nobody has picked it up yet
+  PENDING: "pending", // answered, waiting on the requester
   RESOLVED: "resolved",
   CLOSED: "closed",
 } as const;
@@ -63,40 +63,62 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // support tickets submitted by customers
+    // the catalog: every ticket the team has logged
     tickets: defineTable({
-      reference: v.string(), // short human friendly id, e.g. TCK-8F3KQ
+      reference: v.string(), // short human friendly id, e.g. INT-8F3KQ
       subject: v.string(),
-      customerName: v.string(),
-      customerEmail: v.string(),
+      requesterId: v.optional(v.id("users")), // who logged it
+      customerName: v.string(), // requester display name
+      customerEmail: v.string(), // requester contact address
       status: ticketStatusValidator,
       priority: ticketPriorityValidator,
       messageCount: v.number(),
       lastMessagePreview: v.string(),
       lastActivityAt: v.number(),
-      firstAgentReplyAt: v.optional(v.number()),
+      firstResponseAt: v.optional(v.number()), // first comment from someone other than the requester
       resolvedAt: v.optional(v.number()),
       createdAt: v.number(),
     })
       .index("by_status", ["status"])
       .index("by_reference", ["reference"])
-      .index("by_last_activity", ["lastActivityAt"]),
+      .index("by_last_activity", ["lastActivityAt"])
+      .index("by_requester", ["requesterId"]),
 
-    // the conversation thread for a ticket
+    // the comment thread on a ticket
     ticketMessages: defineTable({
       ticketId: v.id("tickets"),
-      authorType: v.union(v.literal("customer"), v.literal("agent")),
+      authorId: v.optional(v.id("users")),
       authorName: v.string(),
       body: v.string(),
       createdAt: v.number(),
     }).index("by_ticket", ["ticketId", "createdAt"]),
 
-    // add other tables here
+    // files uploaded alongside a ticket
+    attachments: defineTable({
+      ticketId: v.id("tickets"),
+      uploadedBy: v.optional(v.id("users")),
+      storageId: v.id("_storage"),
+      name: v.string(),
+      size: v.number(),
+      contentType: v.optional(v.string()),
+      createdAt: v.number(),
+    }).index("by_ticket", ["ticketId"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // personal todos, always scoped to one teammate
+    todos: defineTable({
+      ownerId: v.id("users"),
+      title: v.string(),
+      note: v.optional(v.string()),
+      done: v.boolean(),
+      dueAt: v.optional(v.number()),
+      ticketId: v.optional(v.id("tickets")), // optionally linked to a ticket
+      createdAt: v.number(),
+      completedAt: v.optional(v.number()),
+    })
+      .index("by_owner", ["ownerId"])
+      .index("by_owner_done", ["ownerId", "done"]),
+
+    // add other tables here
   },
   {
     schemaValidation: false,

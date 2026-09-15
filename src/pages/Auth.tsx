@@ -15,7 +15,13 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, LifeBuoy, Loader2, Mail, UserX } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  Mail,
+  SquareStack,
+  UserX,
+} from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -123,15 +129,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     <button
                       type="button"
                       onClick={() => navigate("/")}
-                      aria-label="Relay home"
-                      className="mb-4 mt-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-[1.03]"
+                      aria-label="Intake home"
+                      className="mb-4 mt-4 flex size-14 items-center justify-center rounded-2xl border border-border/80 bg-card text-primary transition-colors hover:border-primary/40"
                     >
-                      <LifeBuoy className="size-6" />
+                      <SquareStack className="size-6" />
                     </button>
                   </div>
-                <CardTitle className="text-xl">Sign in to Relay</CardTitle>
+                <CardTitle className="text-xl">Sign in to Intake</CardTitle>
                 <CardDescription>
-                  Enter your email and we&apos;ll send a one-time code
+                  Use your work email and we&apos;ll send a one-time code. Your
+                  first sign-in creates the account.
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleEmailSubmit}>
@@ -186,7 +193,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       disabled={isLoading}
                     >
                       <UserX className="mr-2 h-4 w-4" />
-                      Continue as Guest
+                      Explore as a guest
                     </Button>
                   </div>
                 </CardContent>

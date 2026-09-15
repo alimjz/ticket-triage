@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import {
   mutation,
   query,
@@ -16,15 +16,23 @@ import {
   type TicketStatus,
 } from "./schema";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const REFERENCE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const REFERENCE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
-/** Only the signed-in agent (the ticket owner) can read or change the queue. */
-async function requireAgent(ctx: QueryCtx | MutationCtx) {
+const attachmentInput = v.object({
+  storageId: v.id("_storage"),
+  name: v.string(),
+  size: v.number(),
+  contentType: v.optional(v.string()),
+});
+
+/** Every screen in Intake sits behind an account. */
+async function requireUser(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
   if (userId === null) {
-    throw new ConvexError("You need to sign in to manage tickets.");
+    throw new ConvexError("Sign in to use Intake.");
   }
   return userId;
 }
@@ -32,9 +40,10 @@ async function requireAgent(ctx: QueryCtx | MutationCtx) {
 function randomReference() {
   let code = "";
   for (let i = 0; i < 5; i += 1) {
-    code += REFERENCE_ALPHABET[Math.floor(Math.random() * REFERENCE_ALPHABET.length)];
+    code +=
+      REFERENCE_ALPHABET[Math.floor(Math.random() * REFERENCE_ALPHABET.length)];
   }
-  return `TCK-${code}`;
+  return `INT-${code}`;
 }
 
 function preview(body: string) {
@@ -46,31 +55,48 @@ function utcDayKey(timestamp: number) {
   return new Date(timestamp).toISOString().slice(0, 10);
 }
 
-/** Public: a customer submits a ticket. No account required. */
+function displayName(user: Doc<"users"> | null, fallback = "Teammate") {
+  const name = user?.name?.trim();
+  if (name) return name;
+  const email = user?.email?.trim();
+  if (email) return email.split("@")[0];
+  return fallback;
+}
+
+/** Signed-in users upload files straight to Convex storage. */
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireUser(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/** Log a new ticket, optionally with files attached. */
 export const createTicket = mutation({
   args: {
-    customerName: v.string(),
-    customerEmail: v.string(),
     subject: v.string(),
     body: v.string(),
+    attachments: v.optional(v.array(attachmentInput)),
   },
   handler: async (ctx, args) => {
-    const customerName = args.customerName.trim();
-    const customerEmail = args.customerEmail.trim().toLowerCase();
+    const userId = await requireUser(ctx);
+    const author = await ctx.db.get(userId);
+
     const subject = args.subject.trim();
     const body = args.body.trim();
+    const files = (args.attachments ?? []).slice(0, MAX_ATTACHMENTS);
 
-    if (customerName.length < 2) {
-      throw new ConvexError("Please enter your name.");
-    }
-    if (!EMAIL_PATTERN.test(customerEmail)) {
-      throw new ConvexError("Please enter a valid email address.");
-    }
     if (subject.length < 4) {
-      throw new ConvexError("Please add a short subject (at least 4 characters).");
+      throw new ConvexError("Give the ticket a title of at least 4 characters.");
     }
     if (body.length < 10) {
-      throw new ConvexError("Please describe the issue in at least 10 characters.");
+      throw new ConvexError("Describe the request in at least 10 characters.");
+    }
+    for (const file of files) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        throw new ConvexError(`${file.name} is larger than 10 MB.`);
+      }
     }
 
     let reference = randomReference();
@@ -87,8 +113,9 @@ export const createTicket = mutation({
     const ticketId = await ctx.db.insert("tickets", {
       reference,
       subject,
-      customerName,
-      customerEmail,
+      requesterId: userId,
+      customerName: displayName(author),
+      customerEmail: author?.email ?? "",
       status: TICKET_STATUSES.OPEN,
       priority: TICKET_PRIORITIES.NORMAL,
       messageCount: 1,
@@ -99,17 +126,29 @@ export const createTicket = mutation({
 
     await ctx.db.insert("ticketMessages", {
       ticketId,
-      authorType: "customer",
-      authorName: customerName,
+      authorId: userId,
+      authorName: displayName(author),
       body,
       createdAt: now,
     });
+
+    for (const file of files) {
+      await ctx.db.insert("attachments", {
+        ticketId,
+        uploadedBy: userId,
+        storageId: file.storageId,
+        name: file.name,
+        size: file.size,
+        contentType: file.contentType,
+        createdAt: now,
+      });
+    }
 
     return { reference, ticketId };
   },
 });
 
-/** Agent only: the triage queue, newest activity first. */
+/** The catalog: every ticket, most recent activity first. */
 export const listTickets = query({
   args: {
     status: v.optional(v.union(v.literal("all"), ticketStatusValidator)),
@@ -117,7 +156,7 @@ export const listTickets = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAgent(ctx);
+    await requireUser(ctx);
 
     const tickets = await ctx.db
       .query("tickets")
@@ -135,19 +174,20 @@ export const listTickets = query({
       if (!search) return true;
       return (
         ticket.subject.toLowerCase().includes(search) ||
-        ticket.customerEmail.toLowerCase().includes(search) ||
+        ticket.reference.toLowerCase().includes(search) ||
         ticket.customerName.toLowerCase().includes(search) ||
-        ticket.reference.toLowerCase().includes(search)
+        ticket.customerEmail.toLowerCase().includes(search) ||
+        ticket.lastMessagePreview.toLowerCase().includes(search)
       );
     });
   },
 });
 
-/** Agent only: one ticket plus its full conversation. */
+/** One ticket with its thread and attached files. */
 export const getTicket = query({
   args: { ticketId: v.id("tickets") },
   handler: async (ctx, args) => {
-    await requireAgent(ctx);
+    await requireUser(ctx);
 
     const ticket = await ctx.db.get(args.ticketId);
     if (ticket === null) return null;
@@ -158,18 +198,33 @@ export const getTicket = query({
       .order("asc")
       .collect();
 
-    return { ticket, messages };
+    const attachmentRows = await ctx.db
+      .query("attachments")
+      .withIndex("by_ticket", (q) => q.eq("ticketId", args.ticketId))
+      .collect();
+
+    const attachments = await Promise.all(
+      attachmentRows.map(async (file) => ({
+        _id: file._id,
+        name: file.name,
+        size: file.size,
+        contentType: file.contentType,
+        url: await ctx.storage.getUrl(file.storageId),
+      })),
+    );
+
+    return { ticket, messages, attachments };
   },
 });
 
-/** Agent only: reply to the customer. */
-export const replyToTicket = mutation({
+/** Add a comment. The thread decides who the ticket is waiting on. */
+export const addComment = mutation({
   args: { ticketId: v.id("tickets"), body: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAgent(ctx);
+    const userId = await requireUser(ctx);
     const body = args.body.trim();
     if (body.length < 2) {
-      throw new ConvexError("Write a reply before sending.");
+      throw new ConvexError("Write something before posting.");
     }
 
     const ticket = await ctx.db.get(args.ticketId);
@@ -177,13 +232,15 @@ export const replyToTicket = mutation({
       throw new ConvexError("That ticket no longer exists.");
     }
 
-    const agent = await ctx.db.get(userId);
+    const author = await ctx.db.get(userId);
     const now = Date.now();
+    const isRequester =
+      ticket.requesterId !== undefined && ticket.requesterId === userId;
 
     await ctx.db.insert("ticketMessages", {
       ticketId: args.ticketId,
-      authorType: "agent",
-      authorName: agent?.name?.trim() || "Support agent",
+      authorId: userId,
+      authorName: displayName(author),
       body,
       createdAt: now,
     });
@@ -192,15 +249,20 @@ export const replyToTicket = mutation({
       messageCount: ticket.messageCount + 1,
       lastMessagePreview: preview(body),
       lastActivityAt: now,
-      firstAgentReplyAt: ticket.firstAgentReplyAt ?? now,
-      // a fresh reply means the thread now waits on the customer
-      status: TICKET_STATUSES.PENDING,
+      // the first reply from someone other than the requester starts the clock
+      firstResponseAt: isRequester
+        ? ticket.firstResponseAt
+        : (ticket.firstResponseAt ?? now),
+      // a requester comment reopens the ticket, a teammate comment waits on them
+      status: isRequester
+        ? TICKET_STATUSES.OPEN
+        : TICKET_STATUSES.PENDING,
       resolvedAt: undefined,
     });
   },
 });
 
-/** Agent only: move a ticket through triage. */
+/** Move a ticket through the queue. */
 export const updateTicket = mutation({
   args: {
     ticketId: v.id("tickets"),
@@ -208,7 +270,7 @@ export const updateTicket = mutation({
     priority: v.optional(ticketPriorityValidator),
   },
   handler: async (ctx, args) => {
-    await requireAgent(ctx);
+    await requireUser(ctx);
 
     const ticket = await ctx.db.get(args.ticketId);
     if (ticket === null) {
@@ -231,7 +293,44 @@ export const updateTicket = mutation({
   },
 });
 
-export type TicketStats = {
+/** Remove a ticket, its thread, and its files. */
+export const deleteTicket = mutation({
+  args: { ticketId: v.id("tickets") },
+  handler: async (ctx, args) => {
+    await requireUser(ctx);
+
+    const ticket = await ctx.db.get(args.ticketId);
+    if (ticket === null) return;
+
+    const messages = await ctx.db
+      .query("ticketMessages")
+      .withIndex("by_ticket", (q) => q.eq("ticketId", args.ticketId))
+      .collect();
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
+
+    const files = await ctx.db
+      .query("attachments")
+      .withIndex("by_ticket", (q) => q.eq("ticketId", args.ticketId))
+      .collect();
+    for (const file of files) {
+      await ctx.storage.delete(file.storageId);
+      await ctx.db.delete(file._id);
+    }
+
+    const linkedTodos = await ctx.db.query("todos").collect();
+    for (const todo of linkedTodos) {
+      if (todo.ticketId === args.ticketId) {
+        await ctx.db.patch(todo._id, { ticketId: undefined });
+      }
+    }
+
+    await ctx.db.delete(args.ticketId);
+  },
+});
+
+export type TeamStats = {
   total: number;
   open: number;
   pending: number;
@@ -239,18 +338,18 @@ export type TicketStats = {
   closed: number;
   needingAttention: number;
   resolvedThisWeek: number;
-  avgFirstReplyMinutes: number | null;
+  avgFirstResponseMinutes: number | null;
   oldestOpenAt: number | null;
   activity: { day: string; tickets: number }[];
   recent: Doc<"tickets">[];
   queue: Doc<"tickets">[];
 };
 
-/** Agent only: the numbers behind the overview screen. */
+/** Team-wide numbers for the admin area. */
 export const stats = query({
   args: {},
-  handler: async (ctx): Promise<TicketStats> => {
-    await requireAgent(ctx);
+  handler: async (ctx): Promise<TeamStats> => {
+    await requireUser(ctx);
 
     const tickets = await ctx.db
       .query("tickets")
@@ -270,8 +369,8 @@ export const stats = query({
     let needingAttention = 0;
     let resolvedThisWeek = 0;
     let oldestOpenAt: number | null = null;
-    let replyTotal = 0;
-    let replyCount = 0;
+    let responseTotal = 0;
+    let responseCount = 0;
 
     const activityByDay = new Map<string, number>();
     for (let offset = 13; offset >= 0; offset -= 1) {
@@ -290,7 +389,11 @@ export const stats = query({
       ) {
         needingAttention += 1;
       }
-      if (ticket.status === TICKET_STATUSES.RESOLVED && ticket.resolvedAt && ticket.resolvedAt >= weekAgo) {
+      if (
+        ticket.status === TICKET_STATUSES.RESOLVED &&
+        ticket.resolvedAt &&
+        ticket.resolvedAt >= weekAgo
+      ) {
         resolvedThisWeek += 1;
       }
       if (ticket.status === TICKET_STATUSES.OPEN) {
@@ -298,9 +401,9 @@ export const stats = query({
           oldestOpenAt = ticket.createdAt;
         }
       }
-      if (ticket.firstAgentReplyAt) {
-        replyTotal += ticket.firstAgentReplyAt - ticket.createdAt;
-        replyCount += 1;
+      if (ticket.firstResponseAt) {
+        responseTotal += ticket.firstResponseAt - ticket.createdAt;
+        responseCount += 1;
       }
       const day = utcDayKey(ticket.createdAt);
       if (activityByDay.has(day)) {
@@ -316,8 +419,10 @@ export const stats = query({
       closed: counts.closed,
       needingAttention,
       resolvedThisWeek,
-      avgFirstReplyMinutes:
-        replyCount === 0 ? null : Math.round(replyTotal / replyCount / 60000),
+      avgFirstResponseMinutes:
+        responseCount === 0
+          ? null
+          : Math.round(responseTotal / responseCount / 60000),
       oldestOpenAt,
       activity: Array.from(activityByDay, ([day, count]) => ({
         day,
@@ -335,11 +440,49 @@ export const stats = query({
   },
 });
 
-/** Agent only: load a small, realistic queue so the overview is not empty. */
+export type MyDashboard = {
+  open: number;
+  total: number;
+  waiting: number;
+  done: number;
+  tickets: Doc<"tickets">[];
+};
+
+/** The signed-in teammate's own tickets and counts. */
+export const myDashboard = query({
+  args: {},
+  handler: async (ctx): Promise<MyDashboard> => {
+    const userId = await requireUser(ctx);
+
+    const mine = await ctx.db
+      .query("tickets")
+      .withIndex("by_requester", (q) => q.eq("requesterId", userId))
+      .collect();
+
+    const sorted = mine.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+
+    return {
+      open: sorted.filter((ticket) => ticket.status === TICKET_STATUSES.OPEN)
+        .length,
+      waiting: sorted.filter(
+        (ticket) => ticket.status === TICKET_STATUSES.PENDING,
+      ).length,
+      done: sorted.filter(
+        (ticket) =>
+          ticket.status === TICKET_STATUSES.RESOLVED ||
+          ticket.status === TICKET_STATUSES.CLOSED,
+      ).length,
+      total: sorted.length,
+      tickets: sorted.slice(0, 6),
+    };
+  },
+});
+
+/** Fill an empty workspace with a believable queue. */
 export const seedSampleTickets = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAgent(ctx);
+    await requireUser(ctx);
 
     const existing = await ctx.db.query("tickets").take(1);
     if (existing.length > 0) return { inserted: 0 };
@@ -349,128 +492,129 @@ export const seedSampleTickets = mutation({
 
     type Sample = {
       subject: string;
-      customerName: string;
-      customerEmail: string;
+      requester: string;
+      email: string;
       body: string;
       status: TicketStatus;
       priority: TicketPriority;
       hoursAgo: number;
-      agentReply?: { body: string; delayHours: number };
+      comment?: { author: string; body: string; delayHours: number };
     };
 
     const samples: Sample[] = [
       {
-        subject: "Cannot export invoices to CSV",
-        customerName: "Priya Raman",
-        customerEmail: "priya@northwind.io",
-        body: "The export button on the invoices page spins forever and nothing downloads. We need the CSV for our quarterly filing. Chrome 128 on macOS.",
+        subject: "Rotate the staging API keys before Friday",
+        requester: "Maya Okafor",
+        email: "maya@example.com",
+        body: "Our staging keys are in three places and one of them is in a shared note from last year. I want them rotated and stored in the vault before the release freeze.",
         status: TICKET_STATUSES.OPEN,
         priority: TICKET_PRIORITIES.HIGH,
         hoursAgo: 3,
       },
       {
-        subject: "Password reset email never arrives",
-        customerName: "Marcus Webb",
-        customerEmail: "marcus@bluepeak.co",
-        body: "I requested a reset link three times in the last hour and nothing shows up, not even in spam. Locked out of my workspace.",
+        subject: "Deploy runbook is out of date",
+        requester: "Devon Reyes",
+        email: "devon@example.com",
+        body: "Following the runbook got me to a step that no longer exists. I wasted twenty minutes on it during the incident yesterday.",
         status: TICKET_STATUSES.OPEN,
         priority: TICKET_PRIORITIES.URGENT,
         hoursAgo: 6,
       },
       {
-        subject: "Billing: charged twice for August",
-        customerName: "Dana Whitfield",
-        customerEmail: "dana@lumenlabs.dev",
-        body: "Our card was charged twice on August 4th for the same Pro subscription. Order IDs are 8812 and 8813. Please refund the duplicate.",
+        subject: "Import fails on files larger than 5 MB",
+        requester: "Nina Halvorsen",
+        email: "nina@example.com",
+        body: "The contact import stops silently at 5 MB. There is no message in the interface and it uploads fine at 4.8 MB, so the limit is real but undocumented.",
         status: TICKET_STATUSES.PENDING,
-        priority: TICKET_PRIORITIES.URGENT,
+        priority: TICKET_PRIORITIES.NORMAL,
         hoursAgo: 30,
-        agentReply: {
-          body: "Thanks for flagging this, Dana. I can see both charges and I've issued a refund for the duplicate, which should land in 3-5 business days. I'll confirm here once the processor acknowledges it.",
+        comment: {
+          author: "Devon Reyes",
+          body: "Confirmed on my machine too. The uploader rejects anything over 5 MB with a generic error. I raised the limit to 20 MB on the branch I pushed yesterday.",
           delayHours: 1.5,
         },
       },
       {
-        subject: "API rate limit feels low on Pro plan",
-        customerName: "Tobias Lind",
-        customerEmail: "tobias@stackfern.se",
-        body: "We hit 429s during our nightly sync even though the docs say Pro includes 10x the requests. Can you check our account limits?",
+        subject: "Charts render blank in Safari",
+        requester: "Tobias Lind",
+        email: "tobias@example.com",
+        body: "Every chart on the analytics page is an empty box in Safari 17, but they render correctly in Chrome and Firefox.",
+        status: TICKET_STATUSES.RESOLVED,
+        priority: TICKET_PRIORITIES.NORMAL,
+        hoursAgo: 96,
+        comment: {
+          author: "Maya Okafor",
+          body: "This was a charting library quirk with Safari. Fixed and deployed — hard refresh and the charts come back.",
+          delayHours: 3,
+        },
+      },
+      {
+        subject: "Add the onboarding checklist to the handbook",
+        requester: "Priya Raman",
+        email: "priya@example.com",
+        body: "New teammates keep asking the same five questions in their first week. I drafted a checklist and I need someone to review it before it goes in.",
+        status: TICKET_STATUSES.PENDING,
+        priority: TICKET_PRIORITIES.LOW,
+        hoursAgo: 76,
+        comment: {
+          author: "Nina Halvorsen",
+          body: "Added two steps about staging access and the vault. Review it when you have a minute and I will publish it.",
+          delayHours: 5,
+        },
+      },
+      {
+        subject: "Flaky billing test blocks merges",
+        requester: "Marcus Webb",
+        email: "marcus@example.com",
+        body: "The billing end-to-end test fails about one run in five, so everyone reruns the pipeline until it goes green. It has been like this for two weeks.",
         status: TICKET_STATUSES.OPEN,
         priority: TICKET_PRIORITIES.HIGH,
         hoursAgo: 52,
       },
       {
-        subject: "Webhooks retrying with stale payloads",
-        customerName: "Ana Ferreira",
-        customerEmail: "ana@paloma.app",
-        body: "After a failed delivery our endpoint receives the old payload on retry, so we process the same event twice with outdated data.",
-        status: TICKET_STATUSES.PENDING,
-        priority: TICKET_PRIORITIES.NORMAL,
-        hoursAgo: 76,
-        agentReply: {
-          body: "Great catch — retries were serializing the event snapshot from the first attempt. We're shipping a fix this week and I'll note it here when it's live.",
-          delayHours: 5,
-        },
-      },
-      {
-        subject: "Dashboard charts blank on Safari",
-        customerName: "Kenji Watanabe",
-        customerEmail: "kenji@orbitsystems.jp",
-        body: "Every chart on the analytics dashboard renders as an empty box in Safari 17, but it works fine in Chrome.",
-        status: TICKET_STATUSES.RESOLVED,
-        priority: TICKET_PRIORITIES.NORMAL,
-        hoursAgo: 96,
-        agentReply: {
-          body: "This was a rendering quirk with our chart library on Safari 17. We've deployed a fix — please hard refresh and let me know if the charts appear.",
-          delayHours: 3,
-        },
-      },
-      {
-        subject: "How do I invite the rest of my team?",
-        customerName: "Sofia Marchetti",
-        customerEmail: "sofia@fresco.design",
-        body: "We just upgraded and I can't find where to add teammates. Is there a seat limit on the Pro plan?",
-        status: TICKET_STATUSES.RESOLVED,
-        priority: TICKET_PRIORITIES.LOW,
-        hoursAgo: 120,
-        agentReply: {
-          body: "Settings → Members → Invite, and Pro includes 10 seats. Invites expire after 7 days, so you can resend any that go unaccepted.",
-          delayHours: 2,
-        },
-      },
-      {
-        subject: "Import fails on files larger than 5MB",
-        customerName: "Grace Adeyemi",
-        customerEmail: "grace@halcyonhq.com",
-        body: "Our contact import silently stops at 5MB. Nothing in the UI explains the limit and the file uploads fine at 4.8MB.",
+        subject: "Nightly sync hits the API rate limit",
+        requester: "Ana Ferreira",
+        email: "ana@example.com",
+        body: "The nightly sync gets a 429 partway through and resumes from the beginning the next day. It has not finished a full pass in a week.",
         status: TICKET_STATUSES.OPEN,
-        priority: TICKET_PRIORITIES.NORMAL,
+        priority: TICKET_PRIORITIES.URGENT,
         hoursAgo: 150,
       },
       {
-        subject: "Feature request: dark mode",
-        customerName: "Oliver Grant",
-        customerEmail: "oliver@tidalwave.io",
-        body: "Any chance of a dark theme? Half our team works late and the white interface is rough on the eyes.",
+        subject: "Retries resend stale webhook payloads",
+        requester: "Kenji Watanabe",
+        email: "kenji@example.com",
+        body: "When a delivery fails, the retry carries the payload from the first attempt instead of the latest state, so our consumer applies an outdated event.",
+        status: TICKET_STATUSES.OPEN,
+        priority: TICKET_PRIORITIES.HIGH,
+        hoursAgo: 240,
+      },
+      {
+        subject: "Move the nightly backup to a separate bucket",
+        requester: "Helena Vasquez",
+        email: "helena@example.com",
+        body: "Backups currently land in the same bucket as user uploads. I would rather have them isolated with their own retention rule.",
         status: TICKET_STATUSES.CLOSED,
         priority: TICKET_PRIORITIES.LOW,
-        hoursAgo: 240,
-        agentReply: {
-          body: "Dark mode is on the roadmap but not scheduled yet. I'll add your account to the beta list and close this for now — reply anytime to reopen it.",
-          delayHours: 20,
+        hoursAgo: 300,
+        comment: {
+          author: "Devon Reyes",
+          body: "Split them into the backup bucket with a 90-day lifecycle rule. Closing this, reopen it if anything looks off after the next run.",
+          delayHours: 8,
         },
       },
       {
-        subject: "SSO setup for our workspace",
-        customerName: "Helena Vasquez",
-        customerEmail: "helena@arkwright.co",
-        body: "We're migrating to Okta and need SAML SSO. Is that available on the Business plan, and what do you need from our IT team?",
-        status: TICKET_STATUSES.PENDING,
-        priority: TICKET_PRIORITIES.LOW,
-        hoursAgo: 300,
-        agentReply: {
-          body: "SAML SSO is included with Business. Send me your Okta metadata URL and I'll walk your IT team through the connection.",
-          delayHours: 8,
+        subject: "Write up the incident postmortem",
+        requester: "Grace Adeyemi",
+        email: "grace@example.com",
+        body: "We agreed to write a public postmortem for the outage on Thursday. Draft due before the next planning meeting.",
+        status: TICKET_STATUSES.RESOLVED,
+        priority: TICKET_PRIORITIES.NORMAL,
+        hoursAgo: 120,
+        comment: {
+          author: "Devon Reyes",
+          body: "Draft is on the internal wiki with the timeline and the three follow-up tickets linked at the bottom. Ready for your review.",
+          delayHours: 2,
         },
       },
     ];
@@ -478,43 +622,39 @@ export const seedSampleTickets = mutation({
     let inserted = 0;
     for (const sample of samples) {
       const createdAt = now - sample.hoursAgo * hourMs;
+      const commentAt = sample.comment
+        ? createdAt + sample.comment.delayHours * hourMs
+        : null;
+
       const ticketId = await ctx.db.insert("tickets", {
         reference: randomReference(),
         subject: sample.subject,
-        customerName: sample.customerName,
-        customerEmail: sample.customerEmail,
+        customerName: sample.requester,
+        customerEmail: sample.email,
         status: sample.status,
         priority: sample.priority,
-        messageCount: sample.agentReply ? 2 : 1,
-        lastMessagePreview: preview(sample.agentReply?.body ?? sample.body),
-        lastActivityAt: sample.agentReply
-          ? createdAt + sample.agentReply.delayHours * hourMs
-          : createdAt,
-        firstAgentReplyAt: sample.agentReply
-          ? createdAt + sample.agentReply.delayHours * hourMs
-          : undefined,
+        messageCount: sample.comment ? 2 : 1,
+        lastMessagePreview: preview(sample.comment?.body ?? sample.body),
+        lastActivityAt: commentAt ?? createdAt,
+        firstResponseAt: commentAt ?? undefined,
         resolvedAt:
-          sample.status === TICKET_STATUSES.RESOLVED
-            ? createdAt + sample.agentReply!.delayHours * hourMs
-            : undefined,
+          sample.status === TICKET_STATUSES.RESOLVED ? commentAt ?? createdAt : undefined,
         createdAt,
       });
 
       await ctx.db.insert("ticketMessages", {
         ticketId,
-        authorType: "customer",
-        authorName: sample.customerName,
+        authorName: sample.requester,
         body: sample.body,
         createdAt,
       });
 
-      if (sample.agentReply) {
+      if (sample.comment && commentAt) {
         await ctx.db.insert("ticketMessages", {
           ticketId,
-          authorType: "agent",
-          authorName: "Support agent",
-          body: sample.agentReply.body,
-          createdAt: createdAt + sample.agentReply.delayHours * hourMs,
+          authorName: sample.comment.author,
+          body: sample.comment.body,
+          createdAt: commentAt,
         });
       }
 
@@ -524,7 +664,3 @@ export const seedSampleTickets = mutation({
     return { inserted };
   },
 });
-
-export type TicketDoc = Doc<"tickets">;
-export type TicketMessageDoc = Doc<"ticketMessages">;
-export type TicketId = Id<"tickets">;

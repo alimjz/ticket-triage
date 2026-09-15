@@ -1,11 +1,11 @@
 {
-  "name": "freebuff.com application",
-  "short_name": "freebuff.com",
-  "description": "freebuff.com application",
+  "name": "Intake — Internal ticketing",
+  "short_name": "Intake",
+  "description": "A private ticketing system for a small team: tickets, comments, files, and personal todos.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#15171e",
+  "theme_color": "#15171e",
   "icons": [
     {
       "src": "/logo.png",

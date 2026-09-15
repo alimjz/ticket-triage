@@ -3,43 +3,39 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
-  Globe,
-  Inbox,
   LayoutDashboard,
-  LifeBuoy,
+  Layers,
   LogOut,
-  MessageSquarePlus,
+  Plus,
+  ShieldCheck,
+  SquareStack,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
 
-const PRIMARY_NAV: {
+const NAV: {
   to: string;
   label: string;
   icon: LucideIcon;
   end?: boolean;
 }[] = [
-  { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/dashboard/tickets", label: "Tickets", icon: Inbox },
-];
-
-const CUSTOMER_NAV: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: "/submit", label: "Ticket form", icon: MessageSquarePlus },
-  { to: "/", label: "Public site", icon: Globe },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/catalog", label: "Catalog", icon: Layers },
+  { to: "/admin", label: "Admin", icon: ShieldCheck },
 ];
 
 function Brand() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-        <LifeBuoy className="size-[18px]" />
+      <span className="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-card text-primary">
+        <SquareStack className="size-[18px]" />
       </span>
       <span className="leading-tight">
         <span className="block text-[15px] font-semibold tracking-tight">
-          Relay
+          Intake
         </span>
-        <span className="block text-[11px] font-medium text-muted-foreground">
-          Support desk
+        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          Internal ticketing
         </span>
       </span>
     </div>
@@ -48,10 +44,10 @@ function Brand() {
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
     isActive
-      ? "bg-card text-foreground shadow-sm ring-1 ring-border/70"
-      : "hover:bg-sidebar-accent",
+      ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+      : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground",
   );
 }
 
@@ -69,7 +65,7 @@ export function AppShell({
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const name = user?.name?.trim() || user?.email || "Agent";
+  const name = user?.name?.trim() || user?.email || "Teammate";
   const initials = name
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -83,57 +79,62 @@ export function AppShell({
   };
 
   return (
-    <div className="flex min-h-screen bg-secondary/35">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r border-border/70 bg-sidebar px-4 py-5 lg:flex">
-        <NavLink to="/" className="px-1 py-1">
+    <div className="flex min-h-screen bg-background">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-4 py-5 lg:flex">
+        <NavLink to="/dashboard" className="px-1 py-1">
           <Brand />
         </NavLink>
 
+        <Button asChild className="w-full justify-start gap-2">
+          <NavLink to="/new">
+            <Plus className="size-4" />
+            New ticket
+          </NavLink>
+        </Button>
+
         <nav className="flex flex-col gap-1">
-          {PRIMARY_NAV.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={navClass}
+            >
               <item.icon className="size-4" />
               {item.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="flex flex-col gap-1">
-          <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
-            Customer-facing
+        <div className="mt-auto space-y-3">
+          <p className="px-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
+            {user?.role === "admin" ? "Workspace owner" : "Workspace member"}
           </p>
-          {CUSTOMER_NAV.map((item) => (
-            <NavLink key={item.to} to={item.to} end className={navClass}>
-              <item.icon className="size-4" />
-              {item.label}
-            </NavLink>
-          ))}
-        </div>
-
-        <div className="mt-auto rounded-xl border border-border/70 bg-card p-3 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-              {initials || "A"}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-[13px] font-medium">
-                {name}
+          <div className="rounded-xl border border-sidebar-border bg-card/60 p-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 font-mono text-[11px] font-medium text-primary">
+                {initials || "T"}
               </span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {user?.email ?? "Signed in"}
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-[13px] font-medium">
+                  {name}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {user?.email ?? "Signed in"}
+                </span>
               </span>
-            </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="mt-2 w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="size-4" />
+              Sign out
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="mt-2 w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="size-4" />
-            Sign out
-          </Button>
         </div>
       </aside>
 
@@ -141,22 +142,30 @@ export function AppShell({
         <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur">
           <div className="flex flex-col gap-3 px-4 py-4 sm:px-8">
             <div className="flex items-center justify-between gap-3 lg:hidden">
-              <NavLink to="/">
+              <NavLink to="/dashboard">
                 <Brand />
               </NavLink>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={handleSignOut}
-                aria-label="Sign out"
-              >
-                <LogOut className="size-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button asChild size="sm" className="gap-1.5">
+                  <NavLink to="/new">
+                    <Plus className="size-4" />
+                    New
+                  </NavLink>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSignOut}
+                  aria-label="Sign out"
+                >
+                  <LogOut className="size-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
                   {title}
                 </h1>
@@ -172,17 +181,17 @@ export function AppShell({
             </div>
 
             <nav className="-mb-1 flex gap-1 overflow-x-auto lg:hidden">
-              {[...PRIMARY_NAV, ...CUSTOMER_NAV].map((item) => (
+              {NAV.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end
+                  end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      "flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors",
+                      "flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors",
                       isActive
-                        ? "bg-primary/10 text-primary"
-                        : "hover:bg-muted",
+                        ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                        : "text-muted-foreground hover:bg-foreground/[0.04]",
                     )
                   }
                 >

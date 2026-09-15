@@ -7,63 +7,54 @@ type Meta = {
   label: string;
   hint: string;
   badge: string;
-  dot: string;
 };
 
 export const STATUS_META: Record<TicketStatus, Meta> = {
   open: {
     label: "Open",
-    hint: "Needs a first reply",
-    badge: "border-transparent bg-primary/10 text-primary",
-    dot: "bg-primary",
+    hint: "Logged, nobody has picked it up yet",
+    badge: "border-transparent bg-primary/14 text-primary",
   },
   pending: {
     label: "Waiting",
-    hint: "Replied, waiting on the customer",
+    hint: "Replied to, waiting on the requester",
     badge:
-      "border-transparent bg-amber-500/12 text-amber-700 dark:text-amber-300",
-    dot: "bg-amber-500",
+      "border-transparent bg-amber-500/14 text-amber-700 dark:text-amber-300",
   },
   resolved: {
     label: "Resolved",
-    hint: "Answered and confirmed",
+    hint: "Handled and confirmed",
     badge:
-      "border-transparent bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
-    dot: "bg-emerald-500",
+      "border-transparent bg-emerald-500/14 text-emerald-700 dark:text-emerald-300",
   },
   closed: {
     label: "Closed",
-    hint: "Archived, no longer active",
+    hint: "Archived, kept for the record",
     badge: "border-transparent bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground/50",
   },
 };
 
 export const PRIORITY_META: Record<TicketPriority, Meta> = {
   low: {
     label: "Low",
-    hint: "Whenever there is time",
+    hint: "Whenever there is room",
     badge: "border-transparent bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground/50",
   },
   normal: {
     label: "Normal",
-    hint: "Standard queue",
-    badge: "border-transparent bg-sky-500/12 text-sky-700 dark:text-sky-300",
-    dot: "bg-sky-500",
+    hint: "Standard queue order",
+    badge: "border-transparent bg-sky-500/14 text-sky-700 dark:text-sky-300",
   },
   high: {
     label: "High",
-    hint: "Affects their work today",
+    hint: "Blocking someone today",
     badge:
-      "border-transparent bg-orange-500/12 text-orange-700 dark:text-orange-300",
-    dot: "bg-orange-500",
+      "border-transparent bg-orange-500/14 text-orange-700 dark:text-orange-300",
   },
   urgent: {
     label: "Urgent",
-    hint: "Blocked or losing money",
-    badge: "border-transparent bg-destructive/12 text-destructive",
-    dot: "bg-destructive",
+    hint: "Stop everything else",
+    badge: "border-transparent bg-destructive/16 text-destructive",
   },
 };
 
@@ -108,4 +99,10 @@ export function formatMinutes(minutes: number | null) {
   const rest = minutes % 60;
   if (hours < 24) return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
   return `${Math.round(hours / 24)}d`;
+}
+
+export function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
