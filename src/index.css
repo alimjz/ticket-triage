@@ -1,16 +1,22 @@
 /* DO NOT CHANGE */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Vazirmatn:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @custom-variant dark (&:is(.dark *));
 
 /* DO NOT CHANGE */
 @theme inline {
-  /* Inter covers Latin copy; Vazirmatn takes over for Persian glyphs. */
-  --font-sans: "Inter", "Vazirmatn", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Inter covers Latin copy; IBM Plex Sans Arabic takes over for Persian.
+     Its engineered, technical character matches the rest of the interface and
+     it shares a superfamily spirit with the mono accent. */
+  --font-sans: "Inter", "IBM Plex Sans Arabic", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Tahoma, "Noto Sans Arabic", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  /* JetBrains Mono leads for Latin; the Persian face is appended so Persian
+     text inside mono contexts (eyebrows, references) still renders well
+     instead of dropping to an arbitrary generic monospace fallback. */
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
-    monospace;
+    "IBM Plex Sans Arabic", "Noto Sans Arabic", Tahoma, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
