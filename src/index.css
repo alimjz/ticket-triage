@@ -1,22 +1,24 @@
 /* DO NOT CHANGE */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+/* All six Persian candidates load here so /fonts can compare them live. The
+   shipping end state is one face; see the note in src/lib/fonts.ts. Tajawal has
+   no 600 weight (it jumps 500 → 700), so it is requested at 400;500;700. */
+@import url("https://fonts.googleapis.com/css2?family=Estedad:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&family=Tajawal:wght@400;500;700&family=Vazirmatn:wght@400;500;600;700&display=swap");
 @custom-variant dark (&:is(.dark *));
 
 /* DO NOT CHANGE */
 @theme inline {
-  /* Inter covers Latin copy; IBM Plex Sans Arabic takes over for Persian.
-     Its engineered, technical character matches the rest of the interface and
-     it shares a superfamily spirit with the mono accent. */
-  --font-sans: "Inter", "IBM Plex Sans Arabic", ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", Tahoma, "Noto Sans Arabic", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  /* Inter covers Latin copy; the Persian face comes in through --font-persian,
+     which the typeface picker on /fonts swaps at runtime. */
+  --font-sans: "Inter", var(--font-persian), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Tahoma, Roboto, "Helvetica Neue", Arial,
+    sans-serif;
   /* JetBrains Mono leads for Latin; the Persian face is appended so Persian
      text inside mono contexts (eyebrows, references) still renders well
      instead of dropping to an arbitrary generic monospace fallback. */
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
-    "IBM Plex Sans Arabic", "Noto Sans Arabic", Tahoma, monospace;
+    var(--font-persian), monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -59,6 +61,9 @@
    and a single restrained blue accent. Both scopes hold the same values so the
    `dark:` utilities stay active. */
 :root {
+  /* Swapped at runtime by PersianFontProvider. Defaults to the shipping face
+     so the first paint is correct even before the provider's layout effect. */
+  --font-persian: "Estedad", "Noto Sans Arabic", Tahoma;
   --radius: 0.7rem;
   --background: oklch(0.166 0.006 265);
   --foreground: oklch(0.964 0.003 265);

@@ -344,6 +344,39 @@ const fa = {
     dashboard: "بازگشت به داشبورد",
     catalog: "مرور فهرست تیکتها",
   },
+  fonts: {
+    title: "قلم فارسی",
+    description:
+      "شش قلم فارسی را با متن یکسان کنار هم ببینید و هرکدام خواناتر بود، روی کل برنامه اعمال کنید.",
+    link: "قلم فارسی",
+    apply: "اعمال این قلم",
+    applied: "اعمال‌شده",
+    defaultBadge: "پیش‌فرض",
+    reset: "بازگشت به پیش‌فرض",
+    specimen: "نمونه",
+    displayLabel: "تیتر",
+    bodyLabel: "متن",
+    eyebrowLabel: "برچسب مونو",
+    figuresLabel: "اعداد و شناسه",
+    notice:
+      "این انتخاب فقط روی متن فارسی اثر می‌گذارد؛ متن لاتین و شناسه‌ها همان Inter و JetBrains Mono می‌مانند. قلم انتخابی در همین مرورگر ذخیره می‌شود.",
+    tagGeometric: "هندسی",
+    tagTechnical: "فنی",
+    tagModern: "مدرن",
+    tagFamiliar: "آشنا",
+    tagRounded: "گرد",
+    tagNeutral: "خنثی",
+    noteEstedad:
+      "هندسی و جمع‌وجور با فرم‌های فارسی؛ گردترین حالت را در وزن‌های تیتر دارد.",
+    noteIbm:
+      "مهندسی‌شده و فنی؛ هم‌راستا با حال‌وهوای مستند و جدی این میز.",
+    noteReadex:
+      "ساخته یک طراح ایرانی؛ دهانه‌های باز و ریتم عریض‌تر و آرام‌تر.",
+    noteVazirmatn: "قلم پیش‌فرض و پرکاربرد فارسی؛ خوانا و آشنا.",
+    noteTajawal:
+      "گردترین گزینه، اما وزن ۶۰۰ ندارد؛ تیترها با وزن ۷۰۰ رندر می‌شوند.",
+    noteNoto: "خنثی و خوانا؛ نقطه مقایسه برای بقیه.",
+  },
   toasts: {
     ticketCreated: "تیکت {reference} ساخته شد",
     commentPosted: "نظر ثبت شد",
@@ -719,6 +752,39 @@ const en: Dictionary = {
     body: "The link may be old, or the ticket it pointed at has been deleted.",
     dashboard: "Back to dashboard",
     catalog: "Browse the catalog",
+  },
+  fonts: {
+    title: "Persian typeface",
+    description:
+      "Six Persian faces side by side on identical copy. Apply whichever reads best across the whole app.",
+    link: "Persian typeface",
+    apply: "Use this face",
+    applied: "Applied",
+    defaultBadge: "Default",
+    reset: "Reset to default",
+    specimen: "Specimen",
+    displayLabel: "Display",
+    bodyLabel: "Body",
+    eyebrowLabel: "Mono label",
+    figuresLabel: "Figures",
+    notice:
+      "This choice only affects Persian text. Latin copy and reference codes stay on Inter and JetBrains Mono. Your pick is stored in this browser.",
+    tagGeometric: "Geometric",
+    tagTechnical: "Technical",
+    tagModern: "Modern",
+    tagFamiliar: "Familiar",
+    tagRounded: "Rounded",
+    tagNeutral: "Neutral",
+    noteEstedad:
+      "Geometric and compact, with Persian-first forms and the roundest headings.",
+    noteIbm:
+      "Engineered and technical, matching the documented, serious feel of the desk.",
+    noteReadex:
+      "From a Persian type designer: open apertures and a calmer, wider rhythm.",
+    noteVazirmatn: "The ubiquitous Persian default: legible and familiar.",
+    noteTajawal:
+      "The roundest option, but it has no 600 weight, so headings render at 700.",
+    noteNoto: "Neutral and legible; the reference point for the rest.",
   },
   toasts: {
     ticketCreated: "Ticket {reference} created",

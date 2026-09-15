@@ -11,9 +11,10 @@ import {
   Plus,
   ShieldCheck,
   SquareStack,
+  Type,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router";
+import { Link, NavLink, useNavigate } from "react-router";
 import type { MessageKey } from "@/lib/i18n";
 
 const NAV: {
@@ -119,6 +120,17 @@ export function AppShell({
 
         <div className="mt-auto space-y-3">
           <LanguageToggle className="w-full justify-center" />
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <Link to="/fonts">
+              <Type className="size-3.5" />
+              {t("fonts.link")}
+            </Link>
+          </Button>
           <div className="rounded-xl border border-sidebar-border bg-card/60 p-3">
             <p className="px-1 pb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
               {user?.role === "admin" ? t("role.owner") : t("role.member")}

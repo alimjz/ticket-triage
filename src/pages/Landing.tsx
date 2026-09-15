@@ -499,9 +499,12 @@ export default function Landing() {
               {t("brand.tagline")}
             </span>
           </div>
-          <div className="flex items-center gap-6 font-mono text-[11px] uppercase tracking-[0.14em]">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em]">
             <Link to="/catalog" className="transition-colors hover:text-foreground">
               {t("nav.catalog")}
+            </Link>
+            <Link to="/fonts" className="transition-colors hover:text-foreground">
+              {t("fonts.link")}
             </Link>
             <Link
               to="/auth?returnTo=%2Fdashboard"
