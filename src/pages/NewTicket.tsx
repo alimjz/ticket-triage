@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/AppShell";
-import { AssigneeSelect, useTeamMembers } from "@/components/AssigneeSelect";
+import { AssigneeSelect } from "@/components/AssigneeSelect";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useTeamMembers } from "@/hooks/use-team-members";
 import { errorMessage } from "@/lib/errors";
 import { formatBytes } from "@/lib/tickets";
 import { useMutation } from "convex/react";

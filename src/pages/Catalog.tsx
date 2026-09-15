@@ -13,7 +13,7 @@ import {
 import { api } from "@/convex/_generated/api";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
 import { errorMessage } from "@/lib/errors";
-import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, timeAgo } from "@/lib/tickets";
+import { PRIORITY_META, PRIORITY_ORDER, timeAgo } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { Loader2, Plus, Search, Sparkles, Layers } from "lucide-react";

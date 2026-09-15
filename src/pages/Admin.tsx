@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/AppShell";
-import { AssigneeSelect, useTeamMembers } from "@/components/AssigneeSelect";
+import { AssigneeSelect } from "@/components/AssigneeSelect";
 import { TicketRow } from "@/components/TicketRow";
 import {
   AlertDialog,
@@ -30,6 +30,7 @@ import {
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
+import { useTeamMembers } from "@/hooks/use-team-members";
 import { errorMessage } from "@/lib/errors";
 import {
   PRIORITY_META,

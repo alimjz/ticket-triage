@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/AppShell";
-import { AssigneeSelect, useTeamMembers } from "@/components/AssigneeSelect";
+import { AssigneeSelect } from "@/components/AssigneeSelect";
 import { PriorityBadge, StatusBadge } from "@/components/TicketRow";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { TicketPriority, TicketStatus } from "@/convex/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useTeamMembers } from "@/hooks/use-team-members";
 import { errorMessage } from "@/lib/errors";
 import {
   PRIORITY_META,
