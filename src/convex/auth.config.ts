@@ -8,6 +8,10 @@ import type { AuthConfig } from "convex/server";
 const freebuffIssuer =
   process.env.VLY_CONVEX_AUTH_ISSUER ?? "https://freebuff.com";
 
+// Same pattern as the freebuff issuer: an empty fallback keeps the config
+// valid on deployments where Clerk has not been configured yet.
+const clerkIssuer = process.env.CLERK_ISSUER ?? "";
+
 export default {
   providers: [
     // Standard Convex Auth provider for this project's own sign-in ("Get
@@ -31,16 +35,16 @@ export default {
     },
     // Clerk sign-in (optional): per-user RS256 JWTs validated against Clerk's
     // OIDC discovery endpoint. The provider is only registered when
-    // CLERK_ISSUER is set, so deployments without Clerk keys behave exactly as
-    // before. Client side, Clerk tokens reach Convex through the "convex" JWT
-    // template; the subject is a Clerk user id, mapped to a users row in
-    // src/convex/identity.ts.
-    ...(process.env.CLERK_ISSUER
+    // CLERK_ISSUER is configured, so deployments without Clerk keys behave
+    // exactly as before. Client side, Clerk tokens reach Convex through the
+    // "convex" JWT template; the subject is a Clerk user id, mapped to a users
+    // row in src/convex/identity.ts.
+    ...(clerkIssuer
       ? [
           {
             type: "customJwt" as const,
-            issuer: process.env.CLERK_ISSUER,
-            jwks: `${process.env.CLERK_ISSUER}/.well-known/jwks.json`,
+            issuer: clerkIssuer,
+            jwks: `${clerkIssuer}/.well-known/jwks.json`,
             applicationID: process.env.CLERK_APPLICATION_ID ?? "convex",
             algorithm: "RS256" as const,
           },

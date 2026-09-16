@@ -1,20 +1,21 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 
 /** Separator Convex Auth uses when a session id is appended to the subject. */
 const TOKEN_SUB_CLAIM_DIVIDER = ":";
 
 /**
- * Resolves the signed-in identity to a users row.
+ * Resolves the signed-in identity to a users row. Read-only: it never
+ * provisions, so it is safe inside queries.
  *
  * Two flavors share this resolver:
- * - Convex Auth (legacy email-code sign-in) puts a users id in the subject,
- *   optionally as `<id>:<sessionId>`, and getAuthUserId resolved it directly.
+ * - Convex Auth (the built-in email-code sign-in) puts a users id in the
+ *   subject, optionally as `<id>:<sessionId>`, and getAuthUserId resolved it
+ *   directly.
  * - Custom JWT providers such as Clerk put their own user id there (e.g.
- *   `user_2abc...`), so the row is looked up by tokenIdentifier and created on
- *   first sight — one account per external identity.
+ *   `user_2abc...`), so the row is looked up by tokenIdentifier.
  */
 async function currentUserId(
   ctx: QueryCtx | MutationCtx,
@@ -37,13 +38,7 @@ async function currentUserId(
     .query("users")
     .withIndex("by_token", (q) => q.eq("tokenIdentifier", subject))
     .unique();
-  if (linked !== null) return linked._id;
-
-  // Clerk user ids look like `user_...`; any other subject is not something we
-  // auto-provision, so treat it as signed out.
-  if (!localPart?.startsWith("user_")) return null;
-
-  return await ctx.db.insert("users", { tokenIdentifier: subject });
+  return linked?._id ?? null;
 }
 
 /**
@@ -61,9 +56,22 @@ export async function requireUserId(
 }
 
 /**
- * Runs on Clerk sign-in (and on first load of a Clerk session): provisions the
- * account if it does not exist yet and keeps name/email current. Safe to call
- * repeatedly; it only patches when something actually changed.
+ * Whether the request carries a verified identity at all, independent of
+ * whether a users row exists yet. The client uses this to hold the UI until a
+ * first-time Clerk sign-in has been provisioned (queries cannot write).
+ */
+export const identityState = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    return { hasIdentity: identity !== null };
+  },
+});
+
+/**
+ * Runs on Clerk sign-in: provisions the account the first time an external
+ * identity is seen (one account per Clerk user id) and keeps name/email
+ * current afterwards. Safe to call repeatedly; it only writes on change.
  */
 export const syncClerkUser = mutation({
   args: {
@@ -71,7 +79,16 @@ export const syncClerkUser = mutation({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new ConvexError("Sign in to use Intake.");
+    }
+    const subject = identity.subject;
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", subject))
+      .unique();
 
     const patch: { name?: string; email?: string } = {};
     const name = args.name?.trim();
@@ -79,9 +96,21 @@ export const syncClerkUser = mutation({
     if (name) patch.name = name;
     if (email) patch.email = email;
 
-    if (Object.keys(patch).length > 0) {
-      await ctx.db.patch(userId, patch);
+    if (existing === null) {
+      // Only external provider subjects are auto-provisioned; anything else
+      // would be an attempt to mint accounts for arbitrary subjects.
+      if (!subject.startsWith("user_")) {
+        throw new ConvexError("This sign-in method cannot create an account.");
+      }
+      return await ctx.db.insert("users", {
+        tokenIdentifier: subject,
+        ...patch,
+      });
     }
-    return userId;
+
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(existing._id, patch);
+    }
+    return existing._id;
   },
 });
