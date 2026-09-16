@@ -2,9 +2,10 @@ import type { MessageKey } from "@/lib/i18n";
 import { createContext } from "react";
 
 /**
- * Persian typeface candidates. Every entry is loaded from Google Fonts, so the
- * comparison needs no self-hosted files, and each one only downloads once
- * Arabic-script text is on screen.
+ * Persian typeface candidates. Every entry is self-hosted through Fontsource
+ * (the @font-face rules live in src/index.css), and each family still ships its
+ * unicode-range subsets, so a face only downloads once Arabic-script text is on
+ * screen.
  *
  * Proper nouns stay in Latin: these are typeface names, not translated copy.
  */

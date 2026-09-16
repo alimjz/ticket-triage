@@ -1,10 +1,42 @@
 /* DO NOT CHANGE */
 @import "tailwindcss";
 @import "tw-animate-css";
-/* All six Persian candidates load here so /fonts can compare them live. The
-   shipping end state is one face; see the note in src/lib/fonts.ts. Tajawal has
-   no 600 weight (it jumps 500 → 700), so it is requested at 400;500;700. */
-@import url("https://fonts.googleapis.com/css2?family=Estedad:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&family=Tajawal:wght@400;500;700&family=Vazirmatn:wght@400;500;600;700&display=swap");
+/* Self-hosted webfonts via Fontsource. The @font-face rules are inlined at the
+   top of the compiled stylesheet; a remote @import, by contrast, gets hoisted
+   past Tailwind's @layer/@property rules into an invalid position that browsers
+   silently ignore — that is why the faces never applied. All six Persian
+   candidates load so /fonts can compare them live; the shipping end state is
+   one face, see src/lib/fonts.ts. Tajawal has no 600 weight (500 → 700), so it
+   is requested at 400;500;700. */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/estedad/400.css";
+@import "@fontsource/estedad/500.css";
+@import "@fontsource/estedad/600.css";
+@import "@fontsource/estedad/700.css";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+@import "@fontsource/ibm-plex-sans-arabic/700.css";
+@import "@fontsource/readex-pro/400.css";
+@import "@fontsource/readex-pro/500.css";
+@import "@fontsource/readex-pro/600.css";
+@import "@fontsource/readex-pro/700.css";
+@import "@fontsource/noto-sans-arabic/400.css";
+@import "@fontsource/noto-sans-arabic/500.css";
+@import "@fontsource/noto-sans-arabic/600.css";
+@import "@fontsource/noto-sans-arabic/700.css";
+@import "@fontsource/vazirmatn/400.css";
+@import "@fontsource/vazirmatn/500.css";
+@import "@fontsource/vazirmatn/600.css";
+@import "@fontsource/vazirmatn/700.css";
+@import "@fontsource/tajawal/400.css";
+@import "@fontsource/tajawal/500.css";
+@import "@fontsource/tajawal/700.css";
 @custom-variant dark (&:is(.dark *));
 
 /* DO NOT CHANGE */
