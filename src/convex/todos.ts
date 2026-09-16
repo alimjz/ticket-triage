@@ -1,15 +1,7 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query, type QueryCtx } from "./_generated/server";
-
-async function requireUser(ctx: QueryCtx) {
-  const userId = await getAuthUserId(ctx);
-  if (userId === null) {
-    throw new ConvexError("Sign in to use Intake.");
-  }
-  return userId;
-}
+import { mutation, query } from "./_generated/server";
+import { requireUserId as requireUser } from "./identity";
 
 export type TodoList = {
   items: Doc<"todos">[];

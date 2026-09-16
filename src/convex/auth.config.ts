@@ -29,5 +29,22 @@ export default {
       applicationID: "vly-convex",
       algorithm: "RS256",
     },
+    // Clerk sign-in (optional): per-user RS256 JWTs validated against Clerk's
+    // OIDC discovery endpoint. The provider is only registered when
+    // CLERK_ISSUER is set, so deployments without Clerk keys behave exactly as
+    // before. Client side, Clerk tokens reach Convex through the "convex" JWT
+    // template; the subject is a Clerk user id, mapped to a users row in
+    // src/convex/identity.ts.
+    ...(process.env.CLERK_ISSUER
+      ? [
+          {
+            type: "customJwt" as const,
+            issuer: process.env.CLERK_ISSUER,
+            jwks: `${process.env.CLERK_ISSUER}/.well-known/jwks.json`,
+            applicationID: process.env.CLERK_APPLICATION_ID ?? "convex",
+            algorithm: "RS256" as const,
+          },
+        ]
+      : []),
   ],
 } satisfies AuthConfig;

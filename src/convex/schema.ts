@@ -61,7 +61,13 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+
+      // External identity subject (e.g. a Clerk user id) for accounts that
+      // sign in through a custom JWT provider. See src/convex/identity.ts.
+      tokenIdentifier: v.optional(v.string()),
+    })
+      .index("email", ["email"]) // index for the email. do not remove or modify
+      .index("by_token", ["tokenIdentifier"]), // index for external identities
 
     // the catalog: every ticket the team has logged
     tickets: defineTable({

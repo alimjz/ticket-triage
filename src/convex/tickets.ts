@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -15,6 +14,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "./schema";
+import { requireUserId } from "./identity";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REFERENCE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -28,14 +28,9 @@ const attachmentInput = v.object({
   contentType: v.optional(v.string()),
 });
 
-/** Every screen in Intake sits behind an account. */
-async function requireUser(ctx: QueryCtx | MutationCtx) {
-  const userId = await getAuthUserId(ctx);
-  if (userId === null) {
-    throw new ConvexError("Sign in to use Intake.");
-  }
-  return userId;
-}
+/** Every screen in Intake sits behind an account. Identity-aware so both the
+ *  built-in email-code sign-in and external providers (Clerk) resolve. */
+const requireUser = requireUserId;
 
 function randomReference() {
   let code = "";
